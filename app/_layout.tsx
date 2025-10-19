@@ -1,24 +1,21 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import { Redirect, Slot, useRootNavigationState, useSegments } from "expo-router";
+import { TamaguiProvider } from 'tamagui';
+import config from '../tamagui.config';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const isLoggedIn = false;
+  const navState = useRootNavigationState();
+  const segments = useSegments();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <TamaguiProvider config={config}>
+      {!navState?.key ? (
+        <Slot />
+      ) : segments[0] !== "(auth)" ? (
+        <Redirect href="/(auth)/sign-in" />
+      ) : (
+        <Slot />
+      )}
+    </TamaguiProvider>
   );
 }
