@@ -353,29 +353,32 @@ export default function ActiveWorkoutScreen() {
         </ScrollView>
 
         {/* Fixed Finish Button */}
-        <YStack
-          backgroundColor="white"
-          borderTopWidth={1}
-          borderTopColor="#e5e7eb"
-          p="$4"
-          pb="$2"
-        >
-          <Button
-            size="$6"
-            backgroundColor="#16a34a"
-            color="white"
-            borderRadius="$10"
-            onPress={handleFinishWorkout}
-            pressStyle={{ backgroundColor: '#15803d' }}
+        <SafeAreaView edges={['bottom']} style={{ backgroundColor: 'white' }}>
+          <YStack
+            backgroundColor="white"
+            borderTopWidth={1}
+            borderTopColor="#e5e7eb"
+            px="$4"
+            pt="$4"
+            pb="$2"
           >
-            <XStack ai="center" gap="$2">
-              <Check size={24} color="white" />
-              <Text fontSize="$6" fontWeight="bold" color="white">
-                Finish Workout
-              </Text>
-            </XStack>
-          </Button>
-        </YStack>
+            <Button
+              size="$6"
+              backgroundColor="#16a34a"
+              color="white"
+              borderRadius="$10"
+              onPress={handleFinishWorkout}
+              pressStyle={{ backgroundColor: '#15803d' }}
+            >
+              <XStack ai="center" gap="$2">
+                <Check size={24} color="white" />
+                <Text fontSize="$6" fontWeight="bold" color="white">
+                  Finish Workout
+                </Text>
+              </XStack>
+            </Button>
+          </YStack>
+        </SafeAreaView>
       </YStack>
     </SafeAreaView>
   );

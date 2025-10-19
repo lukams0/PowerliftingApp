@@ -16,7 +16,7 @@ export default function ProfileScreen() {
   };
 
   const handleSettingsPress = () => {
-    router.push('./settings.modal');
+    router.push('/settings.modal');
   };
 
   return (

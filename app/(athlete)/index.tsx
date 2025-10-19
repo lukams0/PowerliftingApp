@@ -53,8 +53,7 @@ export default function AthleteIndex() {
   };
 
   const handleCreateWorkout = () => {
-    // TODO: Navigate to workout creation
-    console.log('Create new workout');
+    router.push('/create-workout');
   };
 
   return (

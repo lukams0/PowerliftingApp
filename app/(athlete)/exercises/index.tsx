@@ -25,6 +25,10 @@ export default function ExercisesIndexScreen() {
     router.push(`/(athlete)/exercises/${exerciseId}`);
   };
 
+  const handleCreateExercise = () => {
+    router.push('/create-exercise');
+  };
+
   // Mock active workout data - in real app, get from context: const { activeWorkout, isWorkoutActive } = useWorkout();
   const isWorkoutActive = false;
   const activeWorkout = {
@@ -48,7 +52,8 @@ export default function ExercisesIndexScreen() {
                 chromeless
                 color="#7c3aed"
                 fontWeight="600"
-                onPress={() => console.log('Create exercise')}
+                onPress={handleCreateExercise}
+                pressStyle={{ opacity: 0.7 }}
               >
                 <XStack ai="center" gap="$1">
                   <Plus size={20} color="#7c3aed" />

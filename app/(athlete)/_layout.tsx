@@ -37,6 +37,13 @@ export default function AthleteLayout() {
           tabBarIcon: ({ color, size }) => <History size={size} color={color} />,
         }}
       />
+      {/* Hide nested routes from tabs */}
+      <Tabs.Screen
+        name="history/[workoutId]"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="index"
         options={{
