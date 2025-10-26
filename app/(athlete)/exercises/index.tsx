@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Input, Text, XStack, YStack } from 'tamagui';
-import { ActiveWorkoutBar } from '../../components/ActiveWorkoutBar';
+import { ActiveWorkoutBar } from '../../../components/ActiveWorkoutBar';
 
 const mockExercises = [
   { id: '1', name: 'Squat', category: 'Legs', pr: '315 lbs', lastUsed: '2 days ago' },

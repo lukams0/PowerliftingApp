@@ -4,7 +4,7 @@ import React from 'react';
 import { Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Progress, Text, XStack, YStack } from 'tamagui';
-import { ActiveWorkoutBar } from '../../components/ActiveWorkoutBar';
+import { ActiveWorkoutBar } from '../../../components/ActiveWorkoutBar';
 
 const mockPrograms = [
   {

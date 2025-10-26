@@ -1,31 +1,32 @@
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Keyboard } from 'react-native';
 import { Button, Card, Input, Progress, Text, XStack, YStack } from 'tamagui';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function OnboardingPage() {
-  // Current step in onboarding flow
+  const { completeOnboarding, loading } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
 
   // Form data
   const [age, setAge] = useState('');
-  const [gender, setGender] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('');
   const [weight, setWeight] = useState('');
-  const [weightUnit, setWeightUnit] = useState('lbs'); // lbs or kg
+  const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [height, setHeight] = useState('');
-  const [heightUnit, setHeightUnit] = useState('in'); // in or cm
-  const [experience, setExperience] = useState('');
+  const [heightUnit, setHeightUnit] = useState<'in' | 'cm'>('in');
+  const [experience, setExperience] = useState<'beginner' | 'intermediate' | 'advanced' | 'expert' | ''>('');
   const [goals, setGoals] = useState<string[]>([]);
+  const [error, setError] = useState('');
 
-  // Experience levels
   const experienceLevels = [
-    { id: 'beginner', label: 'Beginner', desc: 'Less than 1 year' },
-    { id: 'intermediate', label: 'Intermediate', desc: '1-3 years' },
-    { id: 'advanced', label: 'Advanced', desc: '3-5 years' },
-    { id: 'expert', label: 'Expert', desc: '5+ years' }
+    { id: 'beginner' as const, label: 'Beginner', desc: 'Less than 1 year' },
+    { id: 'intermediate' as const, label: 'Intermediate', desc: '1-3 years' },
+    { id: 'advanced' as const, label: 'Advanced', desc: '3-5 years' },
+    { id: 'expert' as const, label: 'Expert', desc: '5+ years' }
   ];
 
-  // Goal options
   const goalOptions = [
     { id: 'strength', label: 'Build Strength', icon: '💪' },
     { id: 'compete', label: 'Compete', icon: '🏆' },
@@ -33,7 +34,6 @@ export default function OnboardingPage() {
     { id: 'technique', label: 'Improve Technique', icon: '🎯' }
   ];
 
-  // Toggle goal selection
   const toggleGoal = (goalId: string) => {
     if (goals.includes(goalId)) {
       setGoals(goals.filter(g => g !== goalId));
@@ -42,7 +42,6 @@ export default function OnboardingPage() {
     }
   };
 
-  // Navigation
   const handleNext = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
@@ -57,22 +56,34 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleComplete = () => {
-    // TODO: Save onboarding data and navigate to main app
-    console.log('Onboarding complete:', {
-      age,
-      gender,
-      weight,
-      weightUnit,
-      height,
-      heightUnit,
-      experience,
-      goals
-    });
-    alert('Onboarding complete! Navigate to main app here.');
+  const handleComplete = async () => {
+    try {
+      setError('');
+      
+      if (!gender || !experience) {
+        setError('Please complete all required fields');
+        return;
+      }
+
+      await completeOnboarding({
+        age: parseInt(age),
+        gender,
+        weight: parseFloat(weight),
+        weightUnit,
+        height: parseFloat(height),
+        heightUnit,
+        experience,
+        goals,
+      });
+
+      // Navigate to main app
+      router.replace('/(athlete)');
+    } catch (err: any) {
+      console.error('Onboarding error:', err);
+      setError(err.message || 'Failed to complete onboarding');
+    }
   };
 
-  // Check if current step is valid
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
@@ -94,11 +105,13 @@ export default function OnboardingPage() {
     <YStack
       f={1}
       backgroundColor="#f5f5f5"
-      p="$4"
+      pt="$8"
+      px="$4"
+      pb="$4"
       onPress={() => Keyboard.dismiss()}
     >
       {/* Progress Bar */}
-      <YStack mb="$6" mt="$4">
+      <YStack mb="$6" mt="$2">
         <XStack jc="space-between" mb="$2">
           <Text color="$gray11" fontSize="$2">
             Step {currentStep} of {totalSteps}
@@ -112,9 +125,25 @@ export default function OnboardingPage() {
         </Progress>
       </YStack>
 
+      {/* Error Message */}
+      {error && (
+        <YStack
+          backgroundColor="#fee2e2"
+          p="$3"
+          borderRadius="$3"
+          borderWidth={1}
+          borderColor="#ef4444"
+          mb="$4"
+        >
+          <Text fontSize="$3" color="#dc2626">
+            {error}
+          </Text>
+        </YStack>
+      )}
+
       {/* Content Area */}
-      <YStack f={1}>
-        <Card elevate size="$4" w="100%" p="$6" gap="$4">
+      <YStack f={1} jc="flex-start" mt="$4">
+        <Card elevate size="$4" w="100%" p="$6" gap="$6">
           
           {/* Step 1: Age & Gender */}
           {currentStep === 1 && (
@@ -386,38 +415,39 @@ export default function OnboardingPage() {
               </YStack>
             </YStack>
           )}
+          
+          {/* Navigation Buttons */}
+          <XStack gap="$3" mt="$2">
+            {currentStep > 1 && (
+              <Button
+                f={1}
+                size="$5"
+                backgroundColor="white"
+                color="$gray11"
+                borderColor="#e9d5ff"
+                borderWidth={1}
+                onPress={handleBack}
+                pressStyle={{ opacity: 0.8 }}
+                disabled={loading}
+              >
+                Back
+              </Button>
+            )}
+            <Button
+              f={currentStep === 1 ? 1 : 2}
+              size="$5"
+              backgroundColor="#7c3aed"
+              color="white"
+              onPress={handleNext}
+              disabled={!isStepValid() || loading}
+              opacity={!isStepValid() || loading ? 0.5 : 1}
+              pressStyle={{ backgroundColor: '#6d28d9' }}
+            >
+              {loading ? 'Saving...' : currentStep === totalSteps ? 'Complete' : 'Next'}
+            </Button>
+          </XStack>
         </Card>
       </YStack>
-
-      {/* Navigation Buttons */}
-      <XStack gap="$3" mt="$4">
-        {currentStep > 1 && (
-          <Button
-            f={1}
-            size="$5"
-            backgroundColor="white"
-            color="$gray11"
-            borderColor="#e9d5ff"
-            borderWidth={1}
-            onPress={handleBack}
-            pressStyle={{ opacity: 0.8 }}
-          >
-            Back
-          </Button>
-        )}
-        <Button
-          f={currentStep === 1 ? 1 : 2}
-          size="$5"
-          backgroundColor="#7c3aed"
-          color="white"
-          onPress={handleNext}
-          disabled={!isStepValid()}
-          opacity={!isStepValid() ? 0.5 : 1}
-          pressStyle={{ backgroundColor: '#6d28d9' }}
-        >
-          {currentStep === totalSteps ? 'Complete' : 'Next'}
-        </Button>
-      </XStack>
     </YStack>
   );
 }

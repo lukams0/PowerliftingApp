@@ -2,61 +2,55 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Keyboard } from 'react-native';
 import { Button, Card, Input, Text, XStack, YStack } from 'tamagui';
+import { useAuth } from '../../contexts/AuthContext';
 
-export default function SignUpPage() {
-  // State for form inputs
+export default function CreateAccountPage() {
+  const { signUp, loading } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Handle sign up - ADD YOUR BACKEND LOGIC HERE
   const handleSignUp = async () => {
-    // Basic validation
-    if (password !== confirmPassword) {
-      alert('Passwords do not match!');
-      return;
-    }
-
-    if (password.length < 8) {
-      alert('Password must be at least 8 characters long');
-      return;
-    }
-
-    setIsLoading(true);
-    
     try {
-      // TODO: Replace this with your actual registration API call
-      console.log('Signing up with:', { name, email, password });
-      
-      // Example API call (uncomment and modify when ready):
-      // const response = await fetch('YOUR_API_URL/register', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ name, email, password })
-      // });
-      // const data = await response.json();
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      alert('Account created successfully!'); // Replace with navigation
-    } catch (error) {
-      console.error('Sign up error:', error);
-      alert('Sign up failed. Please try again.');
-    } finally {
-      setIsLoading(false);
+      setError('');
+
+      // Validation
+      if (!name || !email || !password || !confirmPassword) {
+        setError('Please fill in all fields');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters long');
+        return;
+      }
+
+      await signUp({
+        email,
+        password,
+        fullName: name,
+        role: 'athlete',
+      });
+
+      // Navigate to onboarding
+      router.replace('/(auth)/onboarding');
+    } catch (err: any) {
+      console.error('Sign up error:', err);
+      setError(err.message || 'Failed to create account');
     }
   };
 
-  // Handle sign in navigation - ADD YOUR LOGIC HERE
   const handleSignIn = () => {
-    console.log('Sign in clicked');
     router.back();
   };
 
-  // Check if form is valid
   const isFormValid = name && email && password && confirmPassword && password === confirmPassword;
 
   return (
@@ -85,6 +79,21 @@ export default function SignUpPage() {
             Sign up to get started
           </Text>
         </YStack>
+
+        {/* Error Message */}
+        {error && (
+          <YStack
+            backgroundColor="#fee2e2"
+            p="$3"
+            borderRadius="$3"
+            borderWidth={1}
+            borderColor="#ef4444"
+          >
+            <Text fontSize="$3" color="#dc2626">
+              {error}
+            </Text>
+          </YStack>
+        )}
 
         {/* Name Input */}
         <YStack gap="$2">
@@ -169,12 +178,12 @@ export default function SignUpPage() {
           backgroundColor="#7c3aed"
           color="white"
           onPress={handleSignUp}
-          disabled={isLoading || !isFormValid}
-          opacity={isLoading || !isFormValid ? 0.5 : 1}
+          disabled={loading || !isFormValid}
+          opacity={loading || !isFormValid ? 0.5 : 1}
           pressStyle={{ backgroundColor: '#6d28d9' }}
           mt="$2"
         >
-          {isLoading ? 'Creating Account...' : 'Sign Up'}
+          {loading ? 'Creating Account...' : 'Sign Up'}
         </Button>
 
         {/* Divider */}

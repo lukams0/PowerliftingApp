@@ -4,7 +4,7 @@ import React from 'react';
 import { Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Text, XStack, YStack } from 'tamagui';
-import { ActiveWorkoutBar } from '../components/ActiveWorkoutBar';
+import { ActiveWorkoutBar } from '../../components/ActiveWorkoutBar';
 
 export default function ProfileScreen() {
   // Mock active workout data - in real app, get from context: const { activeWorkout, isWorkoutActive } = useWorkout();

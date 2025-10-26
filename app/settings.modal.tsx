@@ -13,11 +13,13 @@ import {
   User
 } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ScrollView, Switch } from 'react-native';
+import { Alert, ScrollView, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Separator, Text, XStack, YStack } from 'tamagui';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function SettingsModal() {
+  const { signOut, loading } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
@@ -26,9 +28,29 @@ export default function SettingsModal() {
   };
 
   const handleLogout = () => {
-    // TODO: Implement logout logic
-    console.log('Logout');
-    alert('Logout functionality to be implemented');
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace('/(auth)/sign-in');
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Failed to log out. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const SettingRow = ({ 
@@ -231,13 +253,15 @@ export default function SettingsModal() {
               borderColor="#fee2e2"
               borderWidth={2}
               onPress={handleLogout}
+              disabled={loading}
+              opacity={loading ? 0.5 : 1}
               pressStyle={{ backgroundColor: '#fef2f2' }}
               mt="$2"
             >
               <XStack ai="center" gap="$2">
                 <LogOut size={20} color="#ef4444" />
                 <Text fontSize="$5" fontWeight="600" color="#ef4444">
-                  Log Out
+                  {loading ? 'Logging Out...' : 'Log Out'}
                 </Text>
               </XStack>
             </Button>

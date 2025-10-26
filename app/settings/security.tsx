@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff, Lock, Save, Shield } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Input, Text, XStack, YStack } from 'tamagui';
+import { authService } from '../../services/auth.service';
 
 export default function SecuritySettings() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -13,40 +14,51 @@ export default function SecuritySettings() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const handleBack = () => {
     router.back();
   };
 
   const handleSave = async () => {
-    // Validation
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      alert('Please fill in all fields');
-      return;
-    }
+    try {
+      setError('');
 
-    if (newPassword !== confirmPassword) {
-      alert('New passwords do not match');
-      return;
-    }
+      // Validation
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        setError('Please fill in all fields');
+        return;
+      }
 
-    if (newPassword.length < 8) {
-      alert('Password must be at least 8 characters');
-      return;
-    }
+      if (newPassword !== confirmPassword) {
+        setError('New passwords do not match');
+        return;
+      }
 
-    setIsSaving(true);
-    // TODO: Save to backend/database
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log('Changing password');
-    setIsSaving(false);
-    alert('Password updated successfully!');
-    
-    // Clear fields
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    router.back();
+      if (newPassword.length < 8) {
+        setError('Password must be at least 8 characters');
+        return;
+      }
+
+      setIsSaving(true);
+
+      // Update password
+      await authService.updatePassword(newPassword);
+
+      // Clear fields
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+      Alert.alert('Success', 'Password updated successfully!', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } catch (err: any) {
+      console.error('Change password error:', err);
+      setError(err.message || 'Failed to update password');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -92,6 +104,21 @@ export default function SecuritySettings() {
                   </YStack>
                 </XStack>
               </Card>
+
+              {/* Error Message */}
+              {error && (
+                <YStack
+                  backgroundColor="#fee2e2"
+                  p="$3"
+                  borderRadius="$3"
+                  borderWidth={1}
+                  borderColor="#ef4444"
+                >
+                  <Text fontSize="$3" color="#dc2626">
+                    {error}
+                  </Text>
+                </YStack>
+              )}
 
               {/* Current Password */}
               <Card elevate size="$4" p="$4" backgroundColor="white">

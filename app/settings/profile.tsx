@@ -1,30 +1,98 @@
 import { router } from 'expo-router';
 import { ArrowLeft, Calendar, Mail, Save, User } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, Input, Text, XStack, YStack } from 'tamagui';
+import { Button, Card, Input, Spinner, Text, XStack, YStack } from 'tamagui';
+import { useAuth } from '../../contexts/AuthContext';
+import { profileService } from '../../services/profile.service';
 
 export default function ProfileInformationSettings() {
-  const [name, setName] = useState('John Doe');
-  const [email, setEmail] = useState('john.doe@example.com');
-  const [age, setAge] = useState('28');
-  const [gender, setGender] = useState('male');
+  const { user, refreshProfile } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('');
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      if (!user) return;
+
+      setLoading(true);
+      const profile = await profileService.getProfile(user.id);
+      const athleteProfile = await profileService.getAthleteProfile(user.id);
+
+      if (profile) {
+        setName(profile.full_name || '');
+        setEmail(profile.email);
+      }
+
+      if (athleteProfile) {
+        setAge(athleteProfile.age?.toString() || '');
+        setGender(athleteProfile.gender || '');
+      }
+    } catch (err) {
+      console.error('Load profile error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleBack = () => {
     router.back();
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
-    // TODO: Save to backend/database
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log('Saving profile:', { name, email, age, gender });
-    setIsSaving(false);
-    alert('Profile updated successfully!');
-    router.back();
+    try {
+      if (!user) return;
+
+      setError('');
+      setIsSaving(true);
+
+      // Update main profile
+      await profileService.updateProfile(user.id, {
+        full_name: name,
+      });
+
+      // Update athlete profile
+      const athleteProfile = await profileService.getAthleteProfile(user.id);
+      if (athleteProfile) {
+        await profileService.updateAthleteProfile(user.id, {
+          age: age ? parseInt(age) : null,
+          gender: gender || null,
+        });
+      }
+
+      await refreshProfile();
+
+      Alert.alert('Success', 'Profile updated successfully!', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } catch (err: any) {
+      console.error('Save profile error:', err);
+      setError(err.message || 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <YStack f={1} ai="center" jc="center" backgroundColor="#f5f5f5">
+        <Spinner size="large" color="#7c3aed" />
+        <Text fontSize="$4" color="$gray10" mt="$4">
+          Loading profile...
+        </Text>
+      </YStack>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
@@ -78,6 +146,21 @@ export default function ProfileInformationSettings() {
                 </Button>
               </YStack>
 
+              {/* Error Message */}
+              {error && (
+                <YStack
+                  backgroundColor="#fee2e2"
+                  p="$3"
+                  borderRadius="$3"
+                  borderWidth={1}
+                  borderColor="#ef4444"
+                >
+                  <Text fontSize="$3" color="#dc2626">
+                    {error}
+                  </Text>
+                </YStack>
+              )}
+
               {/* Name */}
               <Card elevate size="$4" p="$4" backgroundColor="white">
                 <YStack gap="$3">
@@ -116,7 +199,12 @@ export default function ProfileInformationSettings() {
                     autoCapitalize="none"
                     borderColor="#e9d5ff"
                     focusStyle={{ borderColor: '#7c3aed' }}
+                    disabled
+                    opacity={0.6}
                   />
+                  <Text fontSize="$2" color="$gray10">
+                    Email cannot be changed
+                  </Text>
                 </YStack>
               </Card>
 
