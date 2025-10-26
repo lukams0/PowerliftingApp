@@ -19,6 +19,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Timeout for profile loading (10 seconds)
+const PROFILE_LOAD_TIMEOUT = 10000;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -39,11 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           console.log('Loading profile for user:', session.user.id);
           await loadProfile(session.user.id);
+        } else {
+          console.log('No session found, setting loading to false');
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
       } finally {
-        console.log('Auth initialization complete');
+        console.log('Auth initialization complete, setting loading to false');
         setLoading(false);
       }
     };
@@ -58,12 +63,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          console.log('Loading profile after auth change for user:', session.user.id);
           await loadProfile(session.user.id);
         } else {
+          console.log('No user after auth change, clearing profile');
           setProfile(null);
         }
-        
-        // Don't set loading to false here - it's only for initial load
       }
     );
 
@@ -73,9 +78,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadProfile = async (userId: string) => {
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Profile load timeout')), PROFILE_LOAD_TIMEOUT);
+    });
+
     try {
       console.log('Loading profile for:', userId);
-      const userProfile = await profileService.getProfile(userId);
+      
+      // Race between the actual load and the timeout
+      const userProfile = await Promise.race([
+        profileService.getProfile(userId),
+        timeoutPromise
+      ]) as Profile | null;
+      
       console.log('Profile loaded:', !!userProfile);
       
       if (!userProfile) {
@@ -88,6 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(userProfile);
     } catch (error: any) {
       console.error('Error loading profile:', error);
+      
+      // If it's a timeout, log it specifically
+      if (error.message === 'Profile load timeout') {
+        console.error('❌ Profile load timed out after', PROFILE_LOAD_TIMEOUT / 1000, 'seconds');
+      }
+      
       console.log('Setting profile to null and continuing...');
       setProfile(null);
       // Don't throw - allow the app to continue even if profile load fails
@@ -97,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (data: SignUpData) => {
     try {
       setLoading(true);
+      console.log('Starting sign up...');
       const { user: newUser, session: newSession } = await authService.signUp(data);
       
       if (newUser && newSession) {
@@ -104,10 +127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(newSession);
         setUser(newUser);
         
+        console.log('Sign up complete, waiting for session to persist...');
         // Give the session a moment to persist
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Load profile
+        console.log('Loading profile after sign up...');
         await loadProfile(newUser.id);
         
         console.log('Sign up complete, session set');
@@ -123,8 +148,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (data: SignInData) => {
     try {
       setLoading(true);
+      console.log('Starting sign in...');
       const { user: signedInUser } = await authService.signIn(data);
+      
       if (signedInUser) {
+        console.log('Sign in successful, loading profile...');
         await loadProfile(signedInUser.id);
       }
     } catch (error) {
@@ -138,10 +166,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       setLoading(true);
+      console.log('Signing out...');
       await authService.signOut();
       setUser(null);
       setSession(null);
       setProfile(null);
+      console.log('Sign out complete');
     } catch (error) {
       console.error('Sign out error:', error);
       throw error;
@@ -153,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const completeOnboarding = async (data: OnboardingData) => {
     try {
       setLoading(true);
+      console.log('Starting onboarding...');
       
       // Try to get user from context first, then from Supabase
       let currentUser = user;
@@ -173,6 +204,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Completing onboarding for user:', currentUser.id);
       
       await authService.completeAthleteOnboarding(currentUser.id, data);
+      
+      console.log('Onboarding complete, loading profile...');
       await loadProfile(currentUser.id);
       
       console.log('Onboarding completed successfully');
@@ -186,7 +219,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
+      console.log('Refreshing profile...');
       await loadProfile(user.id);
+    } else {
+      console.log('Cannot refresh profile - no user');
     }
   };
 
