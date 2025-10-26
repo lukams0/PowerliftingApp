@@ -1,51 +1,119 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, BookOpen, Calendar, TrendingUp } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ArrowLeft, BookOpen, TrendingUp } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, Tabs, Text, XStack, YStack } from 'tamagui';
-
-// Mock exercise data - replace with actual data from API/database
-const mockExerciseData = {
-  id: '1',
-  name: 'Squat',
-  category: 'Legs',
-  description: 'A compound lower body exercise targeting quads, glutes, and hamstrings.',
-  currentPR: '315 lbs',
-  prDate: 'Oct 10, 2024',
-  lastPerformed: '2 days ago',
-  totalSets: 156,
-  totalReps: 1248,
-  avgWeight: '275 lbs',
-  notes: 'Focus on depth and keeping chest up. Pause at bottom for better control.',
-};
-
-// Mock history data
-const mockHistory = [
-  { id: '1', date: 'Oct 16', sets: 4, reps: '5, 5, 4, 3', weight: '295 lbs', notes: 'Felt strong' },
-  { id: '2', date: 'Oct 12', sets: 4, reps: '5, 5, 5, 4', weight: '285 lbs', notes: 'Good depth' },
-  { id: '3', date: 'Oct 9', sets: 5, reps: '5, 5, 5, 5, 5', weight: '275 lbs', notes: '' },
-  { id: '4', date: 'Oct 5', sets: 4, reps: '6, 6, 5, 5', weight: '265 lbs', notes: 'Deload week' },
-];
-
-// Mock PR history
-const mockPRHistory = [
-  { id: '1', weight: '315 lbs', reps: 1, date: 'Oct 10, 2024' },
-  { id: '2', weight: '305 lbs', reps: 1, date: 'Sep 15, 2024' },
-  { id: '3', weight: '295 lbs', reps: 1, date: 'Aug 20, 2024' },
-  { id: '4', weight: '285 lbs', reps: 1, date: 'Jul 10, 2024' },
-];
+import { Button, Card, Text, XStack, YStack } from 'tamagui';
+import { useAuth } from '../../../contexts/AuthContext';
+import { exerciseService } from '../../../services/exercise.service';
+import { personalRecordService } from '../../../services/personalrecord.service';
+import { Exercise, PersonalRecord } from '../../../types/database.types';
 
 export default function ExerciseDetailPage() {
   const { exerciseId } = useLocalSearchParams();
-  const [activeTab, setActiveTab] = useState('history');
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [exercise, setExercise] = useState<Exercise | null>(null);
+  const [prHistory, setPrHistory] = useState<PersonalRecord[]>([]);
+  const [currentPR, setCurrentPR] = useState<PersonalRecord | null>(null);
 
-  // TODO: Fetch exercise data based on exerciseId
-  const exercise = mockExerciseData;
+  // Fetch exercise and PR data
+  useEffect(() => {
+    loadExerciseData();
+  }, [exerciseId, user]);
+
+  const loadExerciseData = async () => {
+    if (!exerciseId || !user) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch exercise details
+      const exerciseData = await exerciseService.getExercise(exerciseId as string);
+      if (!exerciseData) {
+        setError('Exercise not found');
+        return;
+      }
+      setExercise(exerciseData);
+
+      // Fetch PR history
+      const prHistoryData = await personalRecordService.getExercisePRHistory(
+        user.id,
+        exerciseId as string
+      );
+      setPrHistory(prHistoryData);
+
+      // Get current PR (first in the list if exists)
+      if (prHistoryData.length > 0) {
+        const currentPRData = await personalRecordService.getExercisePR(
+          user.id,
+          exerciseId as string
+        );
+        setCurrentPR(currentPRData);
+      }
+    } catch (err) {
+      console.error('Error loading exercise data:', err);
+      setError('Failed to load exercise data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleBack = () => {
     router.back();
   };
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Format category for display
+  const formatCategory = (category: string) => {
+    return category
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
+        <YStack f={1} backgroundColor="#f5f5f5" ai="center" jc="center">
+          <ActivityIndicator size="large" color="#7c3aed" />
+          <Text mt="$4" color="$gray11">Loading exercise...</Text>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error state
+  if (error || !exercise) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
+        <YStack f={1} backgroundColor="#f5f5f5">
+          <XStack backgroundColor="#f5f5f5" p="$4" ai="center" gap="$3">
+            <Button size="$3" chromeless onPress={handleBack} pressStyle={{ opacity: 0.7 }}>
+              <ArrowLeft size={24} color="#6b7280" />
+            </Button>
+            <Text fontSize="$7" fontWeight="bold" color="$gray12">Exercise</Text>
+          </XStack>
+          <YStack f={1} ai="center" jc="center" p="$4">
+            <Text fontSize="$6" color="$red10" textAlign="center" mb="$4">
+              {error || 'Exercise not found'}
+            </Text>
+            <Button onPress={handleBack} theme="purple">
+              Go Back
+            </Button>
+          </YStack>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
@@ -70,7 +138,7 @@ export default function ExerciseDetailPage() {
               {exercise.name}
             </Text>
             <Text fontSize="$3" color="$gray10">
-              {exercise.category}
+              {formatCategory(exercise.category)}
             </Text>
           </YStack>
         </XStack>
@@ -78,181 +146,82 @@ export default function ExerciseDetailPage() {
         <ScrollView>
           <YStack p="$4" gap="$4">
             {/* PR Card */}
-            <Card elevate size="$4" p="$4" backgroundColor="#7c3aed">
-              <YStack gap="$3">
-                <XStack ai="center" gap="$2">
-                  <TrendingUp size={20} color="white" />
-                  <Text fontSize="$3" color="white" fontWeight="600">
-                    PERSONAL RECORD
-                  </Text>
-                </XStack>
-                <XStack ai="flex-end" gap="$2">
-                  <Text fontSize="$10" fontWeight="bold" color="white">
-                    {exercise.currentPR}
-                  </Text>
-                </XStack>
-                <Text fontSize="$3" color="rgba(255,255,255,0.9)">
-                  Set on {exercise.prDate}
-                </Text>
-              </YStack>
-            </Card>
-
-            {/* Stats Grid */}
-            <XStack gap="$3">
-              <Card elevate f={1} p="$4" backgroundColor="white">
-                <YStack gap="$2" ai="center">
-                  <Text fontSize="$6" fontWeight="bold" color="#7c3aed">
-                    {exercise.totalSets}
-                  </Text>
-                  <Text fontSize="$2" color="$gray10" textAlign="center">
-                    Total Sets
+            {currentPR ? (
+              <Card elevate size="$4" p="$4" backgroundColor="#7c3aed">
+                <YStack gap="$3">
+                  <XStack ai="center" gap="$2">
+                    <TrendingUp size={20} color="white" />
+                    <Text fontSize="$3" color="white" fontWeight="600">
+                      PERSONAL RECORD
+                    </Text>
+                  </XStack>
+                  <XStack ai="flex-end" gap="$2">
+                    <Text fontSize="$10" fontWeight="bold" color="white">
+                      {currentPR.weight_lbs} lbs
+                    </Text>
+                  </XStack>
+                  <Text fontSize="$3" color="rgba(255,255,255,0.9)">
+                    {currentPR.reps} {currentPR.reps === 1 ? 'rep' : 'reps'} • Set on {formatDate(currentPR.achieved_at)}
                   </Text>
                 </YStack>
               </Card>
-              <Card elevate f={1} p="$4" backgroundColor="white">
-                <YStack gap="$2" ai="center">
-                  <Text fontSize="$6" fontWeight="bold" color="#7c3aed">
-                    {exercise.totalReps}
+            ) : (
+              <Card elevate size="$4" p="$4" backgroundColor="white" borderWidth={2} borderColor="#e5e7eb" borderStyle="dashed">
+                <YStack gap="$2" ai="center" py="$3">
+                  <TrendingUp size={24} color="#9ca3af" />
+                  <Text fontSize="$4" color="$gray11" textAlign="center">
+                    No PR recorded yet
                   </Text>
-                  <Text fontSize="$2" color="$gray10" textAlign="center">
-                    Total Reps
-                  </Text>
-                </YStack>
-              </Card>
-              <Card elevate f={1} p="$4" backgroundColor="white">
-                <YStack gap="$2" ai="center">
-                  <Text fontSize="$6" fontWeight="bold" color="#7c3aed">
-                    {exercise.avgWeight}
-                  </Text>
-                  <Text fontSize="$2" color="$gray10" textAlign="center">
-                    Avg Weight
+                  <Text fontSize="$3" color="$gray10" textAlign="center">
+                    Complete a workout to set your first PR!
                   </Text>
                 </YStack>
               </Card>
-            </XStack>
+            )}
 
             {/* Description */}
-            <Card elevate size="$4" p="$4" backgroundColor="white">
-              <YStack gap="$2">
-                <XStack ai="center" gap="$2">
-                  <BookOpen size={18} color="#7c3aed" />
-                  <Text fontSize="$4" fontWeight="bold" color="$gray12">
-                    Description
+            {exercise.description && (
+              <Card elevate size="$4" p="$4" backgroundColor="white">
+                <YStack gap="$2">
+                  <XStack ai="center" gap="$2">
+                    <BookOpen size={18} color="#7c3aed" />
+                    <Text fontSize="$4" fontWeight="bold" color="$gray12">
+                      Description
+                    </Text>
+                  </XStack>
+                  <Text fontSize="$3" color="$gray11" lineHeight="$4">
+                    {exercise.description}
                   </Text>
-                </XStack>
-                <Text fontSize="$3" color="$gray11" lineHeight="$4">
-                  {exercise.description}
-                </Text>
-              </YStack>
-            </Card>
+                </YStack>
+              </Card>
+            )}
 
-            {/* Notes */}
-            {exercise.notes && (
+            {/* Form Notes */}
+            {exercise.form_notes && (
               <Card elevate size="$4" p="$4" backgroundColor="#fef3c7">
                 <YStack gap="$2">
                   <Text fontSize="$4" fontWeight="bold" color="#92400e">
                     Form Notes
                   </Text>
                   <Text fontSize="$3" color="#78350f" lineHeight="$4">
-                    {exercise.notes}
+                    {exercise.form_notes}
                   </Text>
                 </YStack>
               </Card>
             )}
 
-            {/* Tabs for History & PRs */}
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              flexDirection="column"
-              gap="$3"
-            >
-              <Tabs.List
-                backgroundColor="white"
-                borderRadius="$4"
-                padding="$1"
-                gap="$2"
-              >
-                <Tabs.Tab
-                  f={1}
-                  value="history"
-                  backgroundColor={activeTab === 'history' ? '#7c3aed' : 'transparent'}
-                  borderRadius="$3"
-                  pressStyle={{ opacity: 0.8 }}
-                >
-                  <XStack ai="center" gap="$2">
-                    <Calendar size={16} color={activeTab === 'history' ? 'white' : '#6b7280'} />
-                    <Text
-                      fontSize="$4"
-                      fontWeight="600"
-                      color={activeTab === 'history' ? 'white' : '$gray11'}
-                    >
-                      History
-                    </Text>
-                  </XStack>
-                </Tabs.Tab>
-                <Tabs.Tab
-                  f={1}
-                  value="prs"
-                  backgroundColor={activeTab === 'prs' ? '#7c3aed' : 'transparent'}
-                  borderRadius="$3"
-                  pressStyle={{ opacity: 0.8 }}
-                >
-                  <XStack ai="center" gap="$2">
-                    <TrendingUp size={16} color={activeTab === 'prs' ? 'white' : '#6b7280'} />
-                    <Text
-                      fontSize="$4"
-                      fontWeight="600"
-                      color={activeTab === 'prs' ? 'white' : '$gray11'}
-                    >
-                      PRs
-                    </Text>
-                  </XStack>
-                </Tabs.Tab>
-              </Tabs.List>
+            {/* PR History Section */}
+            <YStack gap="$3">
+              <XStack ai="center" gap="$2">
+                <TrendingUp size={20} color="#7c3aed" />
+                <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                  PR History
+                </Text>
+              </XStack>
 
-              {/* History Tab Content */}
-              {activeTab === 'history' && (
+              {prHistory.length > 0 ? (
                 <YStack gap="$3">
-                  {mockHistory.map((session) => (
-                    <Card
-                      key={session.id}
-                      elevate
-                      size="$4"
-                      p="$4"
-                      backgroundColor="white"
-                    >
-                      <YStack gap="$3">
-                        <XStack ai="center" jc="space-between">
-                          <YStack gap="$1">
-                            <Text fontSize="$4" fontWeight="bold" color="$gray12">
-                              {session.date}
-                            </Text>
-                            <Text fontSize="$3" color="$gray10">
-                              {session.sets} sets • {session.weight}
-                            </Text>
-                          </YStack>
-                        </XStack>
-                        <YStack gap="$1">
-                          <Text fontSize="$3" color="$gray11">
-                            Reps: {session.reps}
-                          </Text>
-                          {session.notes && (
-                            <Text fontSize="$3" color="$gray10" fontStyle="italic">
-                              "{session.notes}"
-                            </Text>
-                          )}
-                        </YStack>
-                      </YStack>
-                    </Card>
-                  ))}
-                </YStack>
-              )}
-
-              {/* PRs Tab Content */}
-              {activeTab === 'prs' && (
-                <YStack gap="$3">
-                  {mockPRHistory.map((pr, index) => (
+                  {prHistory.map((pr, index) => (
                     <Card
                       key={pr.id}
                       elevate
@@ -266,7 +235,7 @@ export default function ExerciseDetailPage() {
                         <YStack gap="$1">
                           <XStack ai="center" gap="$2">
                             <Text fontSize="$6" fontWeight="bold" color="#7c3aed">
-                              {pr.weight}
+                              {pr.weight_lbs} lbs
                             </Text>
                             {index === 0 && (
                               <XStack
@@ -282,16 +251,32 @@ export default function ExerciseDetailPage() {
                             )}
                           </XStack>
                           <Text fontSize="$3" color="$gray10">
-                            {pr.reps} rep{pr.reps > 1 ? 's' : ''} • {pr.date}
+                            {pr.reps} rep{pr.reps > 1 ? 's' : ''} • {formatDate(pr.achieved_at)}
                           </Text>
+                          {pr.notes && (
+                            <Text fontSize="$3" color="$gray11" fontStyle="italic" mt="$1">
+                              "{pr.notes}"
+                            </Text>
+                          )}
                         </YStack>
                         <TrendingUp size={24} color={index === 0 ? '#7c3aed' : '#9ca3af'} />
                       </XStack>
                     </Card>
                   ))}
                 </YStack>
+              ) : (
+                <Card elevate size="$4" p="$4" backgroundColor="white">
+                  <YStack gap="$2" ai="center" py="$3">
+                    <Text fontSize="$4" color="$gray11" textAlign="center">
+                      No PR history yet
+                    </Text>
+                    <Text fontSize="$3" color="$gray10" textAlign="center">
+                      Your personal records will appear here once you complete workouts
+                    </Text>
+                  </YStack>
+                </Card>
               )}
-            </Tabs>
+            </YStack>
           </YStack>
         </ScrollView>
       </YStack>
