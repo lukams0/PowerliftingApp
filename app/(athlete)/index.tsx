@@ -1,210 +1,286 @@
 import { router } from 'expo-router';
-import { Calendar, Play, Plus, TrendingUp } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Platform, ScrollView } from 'react-native';
+import { Calendar, Dumbbell, Play } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Platform, RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, Text, XStack, YStack } from 'tamagui';
+import { Button, Card, Spinner, Text, XStack, YStack } from 'tamagui';
 import { ActiveWorkoutBar } from '../../components/ActiveWorkoutBar';
+import { useAuth } from '../../contexts/AuthContext';
+import { programService } from '../../services/program.service';
+import { workoutSessionService } from '../../services/workoutsession.service';
+import { Workout } from '../../types/database.types';
 
-// Mock data - replace with actual data later
-const mockWorkouts = [
-  {
-    id: '1',
-    name: 'Upper Body A',
-    lastPerformed: '2 days ago',
-    exerciseCount: 6,
-    isRecommended: true,
-  },
-  {
-    id: '2',
-    name: 'Lower Body A',
-    lastPerformed: '4 days ago',
-    exerciseCount: 5,
-    isRecommended: false,
-  },
-  {
-    id: '3',
-    name: 'Push Day',
-    lastPerformed: '1 week ago',
-    exerciseCount: 7,
-    isRecommended: false,
-  },
-];
+export default function AthleteHomeScreen() {
+  const { user } = useAuth();
+  const [activeProgram, setActiveProgram] = useState<any>(null);
+  const [todayWorkouts, setTodayWorkouts] = useState<Workout[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-export default function AthleteIndex() {
-  const [selectedWorkout, setSelectedWorkout] = useState<string | null>('1');
-  
-  // Mock active workout data - in real app, get from context: const { activeWorkout, isWorkoutActive } = useWorkout();
-  const isWorkoutActive = false; // Change to true to test
+  // Mock active workout data - replace with actual context
+  const isWorkoutActive = false;
   const activeWorkout = {
     name: 'Upper Body A',
-    startTime: Date.now() - 600000, // 10 minutes ago
+    startTime: Date.now() - 600000,
     exercises: [{ id: '1' }, { id: '2' }]
   };
 
-  const handleStartWorkout = () => {
-    // Navigate to workout modal
-    router.push('/workout');
+  useEffect(() => {
+    loadData();
+  }, [user]);
+
+  const loadData = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      
+      // Load athlete stats
+      const statsData = await workoutSessionService.getAthleteStats(user.id);
+      setStats(statsData);
+      
+      // Get active program
+      const program = await programService.getActiveProgram(user.id);
+      setActiveProgram(program);
+      
+      if (program) {
+        // Get workouts for current week
+        const workouts = await programService.getWeekWorkouts(
+          program.program_id,
+          program.current_week
+        );
+        
+        // Filter for today's workouts
+        const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+        const todaysWorkouts = workouts.filter(w => 
+          w.day_of_week?.toLowerCase() === today.toLowerCase()
+        );
+        
+        setTodayWorkouts(todaysWorkouts);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleQuickStart = () => {
-    // TODO: Start empty workout
-    console.log('Quick start workout');
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
   };
 
-  const handleCreateWorkout = () => {
-    router.push('/create-workout');
+  const handleStartWorkout = async (workout: Workout) => {
+    if (!user) return;
+    
+    try {
+      const session = await workoutSessionService.createSession(user.id, {
+        name: workout.name,
+        workout_template_id: workout.id,
+        notes: ''
+      });
+      
+      router.push(`/(athlete)/programs/workout/${session.id}`);
+    } catch (error) {
+      console.error('Error starting workout:', error);
+    }
   };
+
+  const handleStartCustomWorkout = async () => {
+    if (!user) return;
+    
+    try {
+      const session = await workoutSessionService.createSession(user.id, {
+        name: 'Custom Workout',
+        notes: ''
+      });
+      
+      router.push(`/(athlete)/programs/workout/${session.id}`);
+    } catch (error) {
+      console.error('Error starting workout:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
+        <YStack f={1} ai="center" jc="center">
+          <Spinner size="large" color="#7c3aed" />
+          <Text fontSize="$3" color="$gray10" mt="$3">
+            Loading your workout plan...
+          </Text>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
       <YStack f={1} backgroundColor="#f5f5f5">
-        <ScrollView style={{ flex: 1 }}>
-          <YStack p="$4" gap="$4" pb="$6">
+        <ScrollView
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <YStack p="$4" gap="$4">
             {/* Header */}
             <YStack gap="$2">
               <Text fontSize="$8" fontWeight="bold" color="$gray12">
-                Ready to Train?
+                Welcome Back
               </Text>
               <Text fontSize="$4" color="$gray10">
-                Select a workout to get started
+                Ready to crush your workout?
               </Text>
             </YStack>
 
-            {/* Today's Recommended Workout */}
-            <Card elevate size="$4" p="$4" backgroundColor="#7c3aed">
-              <YStack gap="$3">
-                <XStack ai="center" jc="space-between">
-                  <XStack ai="center" gap="$2">
-                    <Calendar size={20} color="white" />
-                    <Text fontSize="$3" color="white" fontWeight="600">
-                      TODAY'S WORKOUT
-                    </Text>
-                  </XStack>
-                  <TrendingUp size={20} color="white" />
-                </XStack>
-                <Text fontSize="$6" fontWeight="bold" color="white">
-                  Upper Body A
-                </Text>
-                <Text fontSize="$3" color="rgba(255,255,255,0.9)">
-                  6 exercises • Week 1, Day 1
-                </Text>
-              </YStack>
-            </Card>
-
-            {/* Quick Start Button */}
-            <Button
-              size="$5"
-              backgroundColor="white"
-              borderColor="#e9d5ff"
-              borderWidth={2}
-              onPress={handleQuickStart}
-              pressStyle={{ backgroundColor: '#faf5ff' }}
-            >
-              <XStack ai="center" gap="$2">
-                <Plus size={20} color="#7c3aed" />
-                <Text fontSize="$5" fontWeight="600" color="#7c3aed">
-                  Quick Start Empty Workout
-                </Text>
-              </XStack>
-            </Button>
-
-            {/* Workouts Section */}
-            <YStack gap="$3" mt="$2">
-              <XStack ai="center" jc="space-between">
-                <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                  Your Workouts
-                </Text>
-                <Button
-                  size="$3"
-                  chromeless
-                  color="#7c3aed"
-                  fontWeight="600"
-                  onPress={handleCreateWorkout}
-                  pressStyle={{ opacity: 0.7 }}
-                >
-                  <XStack ai="center" gap="$1">
-                    <Plus size={16} color="#7c3aed" />
-                    <Text color="#7c3aed" fontWeight="600">New</Text>
-                  </XStack>
-                </Button>
-              </XStack>
-
-              {/* Workout Cards */}
-              {mockWorkouts.map((workout) => (
-                <Card
-                  key={workout.id}
-                  elevate
-                  size="$4"
-                  p="$4"
-                  backgroundColor={selectedWorkout === workout.id ? '#faf5ff' : 'white'}
-                  borderWidth={2}
-                  borderColor={selectedWorkout === workout.id ? '#7c3aed' : 'transparent'}
-                  pressStyle={{ opacity: 0.9 }}
-                  onPress={() => setSelectedWorkout(workout.id)}
-                >
-                  <YStack gap="$2">
-                    <XStack ai="center" jc="space-between">
-                      <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                        {workout.name}
-                      </Text>
-                      {workout.isRecommended && (
-                        <XStack
-                          backgroundColor="#dcfce7"
-                          px="$2"
-                          py="$1"
-                          borderRadius="$2"
-                        >
-                          <Text fontSize="$1" fontWeight="600" color="#16a34a">
-                            NEXT UP
-                          </Text>
-                        </XStack>
-                      )}
-                    </XStack>
-                    <XStack ai="center" gap="$3">
-                      <Text fontSize="$3" color="$gray10">
-                        {workout.exerciseCount} exercises
-                      </Text>
-                      <Text fontSize="$3" color="$gray9">
-                        •
-                      </Text>
-                      <Text fontSize="$3" color="$gray10">
-                        Last: {workout.lastPerformed}
-                      </Text>
-                    </XStack>
-                  </YStack>
-                </Card>
-              ))}
-            </YStack>
-
-            {/* Recent Activity Section */}
-            <YStack gap="$3" mt="$2">
-              <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                Recent Activity
-              </Text>
+            {/* Stats Card */}
+            {stats && (
               <Card elevate size="$4" p="$4" backgroundColor="white">
+                <XStack gap="$4" jc="space-around">
+                  <YStack ai="center" gap="$1">
+                    <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
+                      {stats.thisWeekWorkouts}
+                    </Text>
+                    <Text fontSize="$2" color="$gray10">This Week</Text>
+                  </YStack>
+                  <YStack ai="center" gap="$1">
+                    <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
+                      {stats.totalWorkouts}
+                    </Text>
+                    <Text fontSize="$2" color="$gray10">Total</Text>
+                  </YStack>
+                  <YStack ai="center" gap="$1">
+                    <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
+                      {Math.round(stats.averageDuration)}
+                    </Text>
+                    <Text fontSize="$2" color="$gray10">Avg Min</Text>
+                  </YStack>
+                </XStack>
+              </Card>
+            )}
+
+            {/* Active Program */}
+            {activeProgram && (
+              <Card elevate size="$4" p="$4" backgroundColor="#faf5ff">
                 <YStack gap="$3">
                   <XStack ai="center" jc="space-between">
                     <YStack gap="$1">
-                      <Text fontSize="$4" fontWeight="600" color="$gray12">
-                        Upper Body A
+                      <Text fontSize="$2" color="#7c3aed" fontWeight="600">
+                        ACTIVE PROGRAM
+                      </Text>
+                      <Text fontSize="$6" fontWeight="bold" color="$gray12">
+                        {activeProgram.program.name}
                       </Text>
                       <Text fontSize="$3" color="$gray10">
-                        2 days ago • 45 min
-                      </Text>
-                    </YStack>
-                    <YStack ai="flex-end" gap="$1">
-                      <Text fontSize="$5" fontWeight="bold" color="#7c3aed">
-                        12,450
-                      </Text>
-                      <Text fontSize="$2" color="$gray10">
-                        lbs volume
+                        Week {activeProgram.current_week} of {activeProgram.program.duration_weeks}
                       </Text>
                     </YStack>
                   </XStack>
+                  <Button
+                    size="$3"
+                    chromeless
+                    color="#7c3aed"
+                    onPress={() => router.push(`/(athlete)/programs/${activeProgram.program_id}`)}
+                  >
+                    View Program
+                  </Button>
                 </YStack>
               </Card>
+            )}
+
+            {/* Today's Workouts */}
+            <YStack gap="$3">
+              <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                Today's Workouts
+              </Text>
+
+              {todayWorkouts.length === 0 ? (
+                <Card elevate size="$4" p="$5" backgroundColor="white">
+                  <YStack ai="center" gap="$3">
+                    <Calendar size={40} color="#d1d5db" />
+                    <YStack ai="center" gap="$1">
+                      <Text fontSize="$4" fontWeight="600" color="$gray12" textAlign="center">
+                        No Scheduled Workouts
+                      </Text>
+                      <Text fontSize="$3" color="$gray10" textAlign="center">
+                        Start a custom workout or check your program schedule
+                      </Text>
+                    </YStack>
+                    <Button
+                      size="$4"
+                      backgroundColor="#7c3aed"
+                      color="white"
+                      icon={Play}
+                      onPress={handleStartCustomWorkout}
+                    >
+                      Start Custom Workout
+                    </Button>
+                  </YStack>
+                </Card>
+              ) : (
+                todayWorkouts.map((workout) => (
+                  <Card
+                    key={workout.id}
+                    elevate
+                    size="$4"
+                    p="$4"
+                    backgroundColor="white"
+                  >
+                    <YStack gap="$3">
+                      <YStack gap="$2">
+                        <Text fontSize="$6" fontWeight="bold" color="$gray12">
+                          {workout.name}
+                        </Text>
+                        {workout.description && (
+                          <Text fontSize="$3" color="$gray10">
+                            {workout.description}
+                          </Text>
+                        )}
+                        {workout.estimated_duration_minutes && (
+                          <XStack ai="center" gap="$2">
+                            <Dumbbell size={16} color="#6b7280" />
+                            <Text fontSize="$3" color="$gray10">
+                              Estimated {workout.estimated_duration_minutes} minutes
+                            </Text>
+                          </XStack>
+                        )}
+                      </YStack>
+                      <Button
+                        size="$4"
+                        backgroundColor="#7c3aed"
+                        color="white"
+                        icon={Play}
+                        onPress={() => handleStartWorkout(workout)}
+                      >
+                        Start Workout
+                      </Button>
+                    </YStack>
+                  </Card>
+                ))
+              )}
             </YStack>
+
+            {/* Quick Start */}
+            <Card elevate size="$4" p="$4" backgroundColor="white">
+              <YStack gap="$3">
+                <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                  Quick Start
+                </Text>
+                <Button
+                  size="$4"
+                  backgroundColor="white"
+                  borderColor="#e5e7eb"
+                  borderWidth={1}
+                  color="$gray12"
+                  icon={Play}
+                  onPress={handleStartCustomWorkout}
+                >
+                  Start Custom Workout
+                </Button>
+              </YStack>
+            </Card>
           </YStack>
         </ScrollView>
 
@@ -224,33 +300,6 @@ export default function AthleteIndex() {
             />
           </YStack>
         )}
-
-        {/* Fixed Start Button - sits above tab bar */}
-        <YStack
-          backgroundColor="white"
-          borderTopWidth={1}
-          borderTopColor="#e5e7eb"
-          p="$4"
-          pb="$2"
-        >
-          <Button
-            size="$6"
-            backgroundColor="#7c3aed"
-            color="white"
-            borderRadius="$10"
-            disabled={!selectedWorkout}
-            opacity={!selectedWorkout ? 0.5 : 1}
-            onPress={handleStartWorkout}
-            pressStyle={{ backgroundColor: '#6d28d9' }}
-          >
-            <XStack ai="center" gap="$2">
-              <Play size={24} color="white" fill="white" />
-              <Text fontSize="$6" fontWeight="bold" color="white">
-                Start Workout
-              </Text>
-            </XStack>
-          </Button>
-        </YStack>
       </YStack>
     </SafeAreaView>
   );
