@@ -97,13 +97,19 @@ class AuthService {
    */
   async signIn({ email, password }: SignInData) {
     try {
+      console.log('Signing in user:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sign in error:', error);
+        throw error;
+      }
 
+      console.log('Sign in successful');
       return { user: data.user, session: data.session };
     } catch (error) {
       console.error('Sign in error:', error);
@@ -116,8 +122,10 @@ class AuthService {
    */
   async signOut() {
     try {
+      console.log('Signing out...');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      console.log('Sign out successful');
     } catch (error) {
       console.error('Sign out error:', error);
       throw error;
@@ -130,11 +138,14 @@ class AuthService {
   async getSession() {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
+      if (error) {
+        console.error('Get session error:', error);
+        throw error;
+      }
       return session;
     } catch (error) {
       console.error('Get session error:', error);
-      throw error;
+      return null; // Return null instead of throwing
     }
   }
 
@@ -187,6 +198,8 @@ class AuthService {
    */
   async completeAthleteOnboarding(userId: string, data: OnboardingData) {
     try {
+      console.log('Completing athlete onboarding for:', userId);
+      
       // Convert units if needed
       const weightLbs = data.weightUnit === 'kg' ? data.weight * 2.20462 : data.weight;
       const heightInches = data.heightUnit === 'cm' ? data.height / 2.54 : data.height;
@@ -201,7 +214,12 @@ class AuthService {
         goals: data.goals,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Onboarding insert error:', error);
+        throw error;
+      }
+      
+      console.log('Athlete profile created successfully');
     } catch (error) {
       console.error('Complete onboarding error:', error);
       throw error;

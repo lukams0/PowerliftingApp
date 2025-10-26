@@ -1,8 +1,11 @@
 import { Redirect } from 'expo-router';
 import { Spinner, Text, YStack } from 'tamagui';
+import { SessionCleaner } from '../components/SessionCleaner';
 import { useAuth } from '../contexts/AuthContext';
+
 export default function Index() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
+
   if (loading) {
     return (
       <YStack f={1} ai="center" jc="center" backgroundColor="#f5f5f5">
@@ -14,11 +17,18 @@ export default function Index() {
     );
   }
 
-  // If user is logged in, redirect to athlete home
-  if (user) {
-    return <Redirect href="/(athlete)" />;
+  // No user - go to sign in
+  if (!user) {
+    return <Redirect href="/(auth)/sign-in" />;
   }
 
-  // Otherwise redirect to sign in
-  return <Redirect href="/(auth)/sign-in" />;
+  // User exists but no profile - this means profile was deleted or signup didn't complete
+  // Show a screen to clear the session
+  if (!profile) {
+    console.warn('User exists but no profile found.');
+    return <SessionCleaner />;
+  }
+
+  // User and profile exist - go to athlete home
+  return <Redirect href="/(athlete)" />;
 }

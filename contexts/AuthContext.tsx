@@ -27,26 +27,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    authService.getSession().then((session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
+    const initializeAuth = async () => {
+      try {
+        console.log('Initializing auth...');
+        const session = await authService.getSession();
+        console.log('Session retrieved:', !!session);
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          console.log('Loading profile for user:', session.user.id);
+          await loadProfile(session.user.id);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        console.log('Auth initialization complete');
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('Auth state changed:', event);
         setSession(session);
         setUser(session?.user ?? null);
+        
         if (session?.user) {
           await loadProfile(session.user.id);
         } else {
           setProfile(null);
         }
-        setLoading(false);
+        
+        // Don't set loading to false here - it's only for initial load
       }
     );
 
@@ -57,15 +74,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (userId: string) => {
     try {
+      console.log('Loading profile for:', userId);
       const userProfile = await profileService.getProfile(userId);
+      console.log('Profile loaded:', !!userProfile);
+      
+      if (!userProfile) {
+        console.warn('⚠️ Profile not found for user:', userId);
+        console.log('This is normal during initial signup or if profile was deleted');
+        setProfile(null);
+        return;
+      }
+      
       setProfile(userProfile);
     } catch (error: any) {
       console.error('Error loading profile:', error);
-      // If profile doesn't exist (PGRST116), that's okay during signup
-      // The profile will be created by the signup process
-      if (error?.code !== 'PGRST116') {
-        console.error('Unexpected profile error:', error);
-      }
+      console.log('Setting profile to null and continuing...');
+      setProfile(null);
+      // Don't throw - allow the app to continue even if profile load fails
     }
   };
 
