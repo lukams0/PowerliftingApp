@@ -1,15 +1,27 @@
 import { router } from 'expo-router';
 import { ArrowLeft, Dumbbell, Save } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Input, Text, TextArea, XStack, YStack } from 'tamagui';
+import { exerciseService } from '../services/exercise.service';
+import { ExerciseCategory } from '../types/database.types';
+import { useAuth } from '../contexts/AuthContext';
 
-const categories = ['Legs', 'Chest', 'Back', 'Shoulders', 'Arms', 'Core', 'Full Body'];
+const categories: { value: ExerciseCategory; label: string }[] = [
+  { value: 'legs', label: 'Legs' },
+  { value: 'chest', label: 'Chest' },
+  { value: 'back', label: 'Back' },
+  { value: 'shoulders', label: 'Shoulders' },
+  { value: 'arms', label: 'Arms' },
+  { value: 'core', label: 'Core' },
+  { value: 'full_body', label: 'Full Body' },
+];
 
 export default function CreateExerciseScreen() {
+  const { user } = useAuth();
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState<ExerciseCategory | ''>('');
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -20,22 +32,41 @@ export default function CreateExerciseScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      alert('Please enter an exercise name');
+      Alert.alert('Validation Error', 'Please enter an exercise name');
       return;
     }
 
     if (!category) {
-      alert('Please select a category');
+      Alert.alert('Validation Error', 'Please select a category');
+      return;
+    }
+
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to create an exercise');
       return;
     }
 
     setIsSaving(true);
-    // TODO: Save to backend/database
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log('Saving exercise:', { name, category, description, notes });
-    setIsSaving(false);
-    alert('Exercise created successfully!');
-    router.back();
+    try {
+      await exerciseService.createCustomExercise(user.id, {
+        name: name.trim(),
+        category,
+        description: description.trim() || undefined,
+        form_notes: notes.trim() || undefined,
+      });
+
+      Alert.alert('Success', 'Exercise created successfully!', [
+        {
+          text: 'OK',
+          onPress: () => router.back(),
+        },
+      ]);
+    } catch (error) {
+      console.error('Error creating exercise:', error);
+      Alert.alert('Error', 'Failed to create exercise. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -91,16 +122,16 @@ export default function CreateExerciseScreen() {
                   <XStack gap="$2" flexWrap="wrap">
                     {categories.map((cat) => (
                       <Button
-                        key={cat}
+                        key={cat.value}
                         size="$3"
-                        backgroundColor={category === cat ? '#7c3aed' : 'white'}
-                        color={category === cat ? 'white' : '$gray11'}
+                        backgroundColor={category === cat.value ? '#7c3aed' : 'white'}
+                        color={category === cat.value ? 'white' : '$gray11'}
                         borderColor="#e9d5ff"
                         borderWidth={1}
-                        onPress={() => setCategory(cat)}
+                        onPress={() => setCategory(cat.value)}
                         pressStyle={{ opacity: 0.8 }}
                       >
-                        {cat}
+                        {cat.label}
                       </Button>
                     ))}
                   </XStack>
