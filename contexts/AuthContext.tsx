@@ -19,15 +19,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Timeout for profile loading (10 seconds)
-const PROFILE_LOAD_TIMEOUT = 10000;
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  // Use refs to track state that needs to be accessed from callbacks
+  const initCompleteRef = React.useRef(false);
+  const loadProfilePromiseRef = React.useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     // Get initial session
@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } finally {
         console.log('Auth initialization complete, setting loading to false');
         setLoading(false);
+        initCompleteRef.current = true;
       }
     };
 
@@ -59,21 +60,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event);
-        
-        // Skip INITIAL_SESSION since we handle it in initializeAuth
-        if (event === 'INITIAL_SESSION') {
-          console.log('Skipping INITIAL_SESSION - already handled in init');
+        console.log('Auth event:', event);
+        console.log('Session exists:', !!session);
+        console.log('User ID:', session?.user?.id);
+
+        // During initialization, skip all events to avoid duplicate loads
+        if (!initCompleteRef.current) {
+          console.log('Skipping event during initialization:', event);
           return;
         }
-        
+
+        console.log('Auth state changed:', event);
+
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user && event === 'SIGNED_IN') {
           console.log('Loading profile after sign in for user:', session.user.id);
           await loadProfile(session.user.id);
-        } else {
+        } else if (!session?.user) {
           console.log('No user after auth change, clearing profile');
           setProfile(null);
         }
@@ -86,19 +91,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadProfile = async (userId: string) => {
-  if (loadingProfile) return;
-  setLoadingProfile(true);
-  try {
-    const userProfile = await profileService.getProfile(userId); // no UI timeout
-    setProfile(userProfile ?? null);
-  } catch (err: any) {
-    // You’ll still see “Query timeout” from the service if it happens
-    console.error('Error loading profile:', err);
-    setProfile(null);
-  } finally {
-    setLoadingProfile(false);
-  }
-};
+    // If there's already a profile load in progress, wait for it
+    if (loadProfilePromiseRef.current) {
+      console.log('Profile load already in progress, waiting...');
+      await loadProfilePromiseRef.current;
+      return;
+    }
+
+    // Create a new promise for this load
+    const loadPromise = (async () => {
+      try {
+        console.log('Starting profile load for user:', userId);
+        const userProfile = await profileService.getProfile(userId);
+        setProfile(userProfile ?? null);
+        console.log('Profile load completed successfully');
+      } catch (err: any) {
+        console.error('Error loading profile:', err);
+        setProfile(null);
+      } finally {
+        // Clear the promise reference when done
+        loadProfilePromiseRef.current = null;
+      }
+    })();
+
+    // Store the promise so concurrent calls can wait for it
+    loadProfilePromiseRef.current = loadPromise;
+    await loadPromise;
+  };
 
   const signUp = async (data: SignUpData) => {
     try {
