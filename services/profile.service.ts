@@ -1,8 +1,8 @@
 import { supabase } from '../lib/supabase';
 import { AthleteProfile, CoachProfile, Profile } from '../types/database.types';
 
-// Timeout for queries (5 seconds)
-const QUERY_TIMEOUT = 10000;
+// Timeout for queries (20 seconds to handle slow initial connections)
+const QUERY_TIMEOUT = 20000;
 
 // Helper to add timeout to promises (works with Promise or PromiseLike)
 function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> {
