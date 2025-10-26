@@ -132,6 +132,10 @@ class WorkoutSessionService {
         throw sessionError;
       }
 
+      if (!session) {
+        return null;
+      }
+
       // Get exercises with details
       const { data: exercises, error: exercisesError } = await supabase
         .from('session_exercises')
@@ -197,7 +201,7 @@ class WorkoutSessionService {
           session_id: sessionId,
           exercise_id: exerciseId,
           exercise_order: order,
-          notes: notes,
+          notes: notes || null,
         })
         .select()
         .single();
@@ -216,6 +220,64 @@ class WorkoutSessionService {
   }
 
   /**
+   * Remove an exercise from a workout session
+   * This will also delete all associated sets due to CASCADE
+   */
+  async removeExerciseFromSession(sessionExerciseId: string): Promise<void> {
+    try {
+      console.log('Removing exercise from session:', sessionExerciseId);
+      
+      const { error } = await supabase
+        .from('session_exercises')
+        .delete()
+        .eq('id', sessionExerciseId);
+
+      if (error) {
+        console.error('Remove exercise error:', error);
+        throw error;
+      }
+
+      console.log('Exercise removed from session successfully');
+    } catch (error) {
+      console.error('Remove exercise from session error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update exercise notes or order
+   */
+  async updateSessionExercise(
+    sessionExerciseId: string,
+    updates: {
+      notes?: string;
+      exercise_order?: number;
+    }
+  ): Promise<SessionExercise> {
+    try {
+      console.log('Updating session exercise:', sessionExerciseId);
+      
+      const { data, error } = await supabase
+        .from('session_exercises')
+        .update(updates)
+        .eq('id', sessionExerciseId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Update session exercise error:', error);
+        throw error;
+      }
+
+      console.log('Session exercise updated successfully');
+      return data;
+    } catch (error) {
+      console.error('Update session exercise error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Add a set to a session exercise
    */
   async addSetToExercise(
@@ -224,7 +286,7 @@ class WorkoutSessionService {
       set_number: number;
       weight_lbs: number;
       reps: number;
-      rpe?: number;
+      rpe?: number | null;
       completed?: boolean;
     }
   ): Promise<ExerciseSet> {
@@ -239,7 +301,7 @@ class WorkoutSessionService {
           weight_lbs: setData.weight_lbs,
           reps: setData.reps,
           rpe: setData.rpe || null,
-          completed: setData.completed !== undefined ? setData.completed : true,
+          completed: setData.completed !== undefined ? setData.completed : false,
         })
         .select()
         .single();
@@ -265,12 +327,12 @@ class WorkoutSessionService {
     updates: {
       weight_lbs?: number;
       reps?: number;
-      rpe?: number;
+      rpe?: number | null;
       completed?: boolean;
     }
   ): Promise<ExerciseSet> {
     try {
-      console.log('Updating set:', setId);
+      console.log('Updating set:', setId, updates);
       
       const { data, error } = await supabase
         .from('exercise_sets')
@@ -318,6 +380,7 @@ class WorkoutSessionService {
 
   /**
    * Complete a workout session
+   * Calculates duration and total volume, sets end_time
    */
   async completeSession(
     sessionId: string,
@@ -329,13 +392,13 @@ class WorkoutSessionService {
       const endTime = new Date().toISOString();
       
       // Get session start time
-      const { data: session } = await supabase
+      const { data: session, error: sessionError } = await supabase
         .from('workout_sessions')
         .select('start_time')
         .eq('id', sessionId)
         .single();
 
-      if (!session) {
+      if (sessionError || !session) {
         throw new Error('Session not found');
       }
 
@@ -358,35 +421,35 @@ class WorkoutSessionService {
       if (sessionExerciseIds.length > 0) {
         const { data: sets } = await supabase
           .from('exercise_sets')
-          .select('weight_lbs, reps')
+          .select('weight_lbs, reps, completed')
           .in('session_exercise_id', sessionExerciseIds);
 
-        totalVolume = (sets || []).reduce(
-          (sum, set) => sum + set.weight_lbs * set.reps,
-          0
-        );
+        // Only count completed sets in volume calculation
+        totalVolume = (sets || [])
+          .filter(set => set.completed)
+          .reduce((sum, set) => sum + (set.weight_lbs * set.reps), 0);
       }
 
-      // Update session
-      const { data, error } = await supabase
+      // Update session with completion data
+      const { data: completedSession, error: updateError } = await supabase
         .from('workout_sessions')
         .update({
           end_time: endTime,
           duration_minutes: durationMinutes,
           total_volume_lbs: totalVolume,
-          notes: notes,
+          notes: notes || null,
         })
         .eq('id', sessionId)
         .select()
         .single();
 
-      if (error) {
-        console.error('Complete session error:', error);
-        throw error;
+      if (updateError) {
+        console.error('Complete session error:', updateError);
+        throw updateError;
       }
 
       console.log('Session completed successfully');
-      return data;
+      return completedSession;
     } catch (error) {
       console.error('Complete session error:', error);
       throw error;
@@ -395,6 +458,7 @@ class WorkoutSessionService {
 
   /**
    * Delete a workout session
+   * This will cascade delete all exercises and sets
    */
   async deleteSession(sessionId: string): Promise<void> {
     try {
@@ -461,6 +525,74 @@ class WorkoutSessionService {
     } catch (error) {
       console.error('Get athlete stats error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get workout session summary (for active workout bar, etc.)
+   */
+  async getSessionSummary(sessionId: string): Promise<{
+    id: string;
+    name: string;
+    start_time: string;
+    exerciseCount: number;
+  } | null> {
+    try {
+      console.log('Fetching session summary:', sessionId);
+      
+      const { data: session, error: sessionError } = await supabase
+        .from('workout_sessions')
+        .select('id, name, start_time')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError || !session) {
+        return null;
+      }
+
+      const { data: exercises } = await supabase
+        .from('session_exercises')
+        .select('id')
+        .eq('session_id', sessionId);
+
+      return {
+        ...session,
+        exerciseCount: exercises?.length || 0,
+      };
+    } catch (error) {
+      console.error('Get session summary error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if athlete has an active (incomplete) session
+   */
+  async getActiveSession(athleteId: string): Promise<WorkoutSession | null> {
+    try {
+      console.log('Checking for active session:', athleteId);
+      
+      const { data, error } = await supabase
+        .from('workout_sessions')
+        .select('*')
+        .eq('athlete_id', athleteId)
+        .is('end_time', null)
+        .order('start_time', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows returned - no active session
+          return null;
+        }
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Get active session error:', error);
+      return null;
     }
   }
 }

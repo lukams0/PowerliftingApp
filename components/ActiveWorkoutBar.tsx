@@ -7,9 +7,15 @@ type ActiveWorkoutBarProps = {
   workoutName: string;
   startTime: number;
   exerciseCount: number;
+  onPress?: () => void;
 };
 
-export function ActiveWorkoutBar({ workoutName, startTime, exerciseCount }: ActiveWorkoutBarProps) {
+export function ActiveWorkoutBar({ 
+  workoutName, 
+  startTime, 
+  exerciseCount,
+  onPress 
+}: ActiveWorkoutBarProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
@@ -33,7 +39,11 @@ export function ActiveWorkoutBar({ workoutName, startTime, exerciseCount }: Acti
   };
 
   const handlePress = () => {
-    router.push('/workout');
+    if (onPress) {
+      onPress();
+    } else {
+      router.push('/workout');
+    }
   };
 
   return (
@@ -60,12 +70,14 @@ export function ActiveWorkoutBar({ workoutName, startTime, exerciseCount }: Acti
                 {formatTime(elapsedTime)}
               </Text>
             </XStack>
-            <XStack ai="center" gap="$1">
-              <Dumbbell size={14} color="white" />
-              <Text fontSize="$2" color="rgba(255,255,255,0.9)">
-                {exerciseCount} exercises
-              </Text>
-            </XStack>
+            {exerciseCount > 0 && (
+              <XStack ai="center" gap="$1">
+                <Dumbbell size={14} color="white" />
+                <Text fontSize="$2" color="rgba(255,255,255,0.9)">
+                  {exerciseCount} exercises
+                </Text>
+              </XStack>
+            )}
           </XStack>
         </YStack>
         <XStack

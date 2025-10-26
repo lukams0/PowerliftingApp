@@ -80,6 +80,13 @@ export default function AthleteLayout() {
           href: null,
         }}
       />
+      {/* Active workout session screen - hidden from tabs */}
+      <Tabs.Screen
+        name="session/[sessionId]"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="exercises"
         options={{

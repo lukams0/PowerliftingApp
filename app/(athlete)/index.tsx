@@ -6,25 +6,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Spinner, Text, XStack, YStack } from 'tamagui';
 import { ActiveWorkoutBar } from '../../components/ActiveWorkoutBar';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWorkout } from '../../contexts/WorkoutContext';
 import { programService } from '../../services/program.service';
 import { workoutSessionService } from '../../services/workoutsession.service';
 import { Workout } from '../../types/database.types';
 
 export default function AthleteHomeScreen() {
   const { user } = useAuth();
+  const { isWorkoutActive, activeSession, startTime, startWorkout, loadActiveWorkout } = useWorkout();
   const [activeProgram, setActiveProgram] = useState<any>(null);
   const [todayWorkouts, setTodayWorkouts] = useState<Workout[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Mock active workout data - replace with actual context
-  const isWorkoutActive = false;
-  const activeWorkout = {
-    name: 'Upper Body A',
-    startTime: Date.now() - 600000,
-    exercises: [{ id: '1' }, { id: '2' }]
-  };
 
   useEffect(() => {
     loadData();
@@ -35,6 +29,9 @@ export default function AthleteHomeScreen() {
     
     try {
       setLoading(true);
+      
+      // Check for active workout
+      await loadActiveWorkout(user.id);
       
       // Load athlete stats
       const statsData = await workoutSessionService.getAthleteStats(user.id);
@@ -76,13 +73,18 @@ export default function AthleteHomeScreen() {
     if (!user) return;
     
     try {
+      // Create session in database
       const session = await workoutSessionService.createSession(user.id, {
         name: workout.name,
         workout_template_id: workout.id,
         notes: ''
       });
       
-      router.push(`/(athlete)/programs/workout/${session.id}`);
+      // Set active workout in context
+      await startWorkout(session.id);
+      
+      // Open workout modal
+      router.push('/workout');
     } catch (error) {
       console.error('Error starting workout:', error);
     }
@@ -92,15 +94,25 @@ export default function AthleteHomeScreen() {
     if (!user) return;
     
     try {
+      // Create session in database
       const session = await workoutSessionService.createSession(user.id, {
         name: 'Custom Workout',
         notes: ''
       });
       
-      router.push(`/(athlete)/programs/workout/${session.id}`);
+      // Set active workout in context
+      await startWorkout(session.id);
+      
+      // Open workout modal
+      router.push('/workout');
     } catch (error) {
       console.error('Error starting workout:', error);
     }
+  };
+
+  const handleResumeWorkout = () => {
+    // Just open the modal - context already has the active session
+    router.push('/workout');
   };
 
   if (loading) {
@@ -138,26 +150,31 @@ export default function AthleteHomeScreen() {
             {/* Stats Card */}
             {stats && (
               <Card elevate size="$4" p="$4" backgroundColor="white">
-                <XStack gap="$4" jc="space-around">
-                  <YStack ai="center" gap="$1">
-                    <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
-                      {stats.thisWeekWorkouts}
-                    </Text>
-                    <Text fontSize="$2" color="$gray10">This Week</Text>
-                  </YStack>
-                  <YStack ai="center" gap="$1">
-                    <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
-                      {stats.totalWorkouts}
-                    </Text>
-                    <Text fontSize="$2" color="$gray10">Total</Text>
-                  </YStack>
-                  <YStack ai="center" gap="$1">
-                    <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
-                      {Math.round(stats.averageDuration)}
-                    </Text>
-                    <Text fontSize="$2" color="$gray10">Avg Min</Text>
-                  </YStack>
-                </XStack>
+                <YStack gap="$3">
+                  <Text fontSize="$4" fontWeight="600" color="$gray12">
+                    Your Progress
+                  </Text>
+                  <XStack gap="$4" jc="space-around">
+                    <YStack ai="center" gap="$1">
+                      <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
+                        {stats.thisWeekWorkouts}
+                      </Text>
+                      <Text fontSize="$2" color="$gray10">This Week</Text>
+                    </YStack>
+                    <YStack ai="center" gap="$1">
+                      <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
+                        {stats.totalWorkouts}
+                      </Text>
+                      <Text fontSize="$2" color="$gray10">Total</Text>
+                    </YStack>
+                    <YStack ai="center" gap="$1">
+                      <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
+                        {Math.round(stats.totalVolume / 1000)}k
+                      </Text>
+                      <Text fontSize="$2" color="$gray10">Total lbs</Text>
+                    </YStack>
+                  </XStack>
+                </YStack>
               </Card>
             )}
 
@@ -165,23 +182,22 @@ export default function AthleteHomeScreen() {
             {activeProgram && (
               <Card elevate size="$4" p="$4" backgroundColor="#faf5ff">
                 <YStack gap="$3">
-                  <XStack ai="center" jc="space-between">
-                    <YStack gap="$1">
-                      <Text fontSize="$2" color="#7c3aed" fontWeight="600">
-                        ACTIVE PROGRAM
-                      </Text>
-                      <Text fontSize="$6" fontWeight="bold" color="$gray12">
-                        {activeProgram.program.name}
-                      </Text>
-                      <Text fontSize="$3" color="$gray10">
-                        Week {activeProgram.current_week} of {activeProgram.program.duration_weeks}
-                      </Text>
-                    </YStack>
+                  <XStack ai="center" gap="$2">
+                    <Calendar size={20} color="#7c3aed" />
+                    <Text fontSize="$4" fontWeight="600" color="#7c3aed">
+                      CURRENT PROGRAM
+                    </Text>
                   </XStack>
+                  <Text fontSize="$6" fontWeight="bold" color="$gray12">
+                    {activeProgram.program_name}
+                  </Text>
+                  <Text fontSize="$3" color="$gray10">
+                    Week {activeProgram.current_week} of {activeProgram.total_weeks}
+                  </Text>
                   <Button
-                    size="$3"
-                    chromeless
-                    color="#7c3aed"
+                    size="$4"
+                    backgroundColor="#7c3aed"
+                    color="white"
                     onPress={() => router.push(`/(athlete)/programs/${activeProgram.program_id}`)}
                   >
                     View Program
@@ -195,28 +211,13 @@ export default function AthleteHomeScreen() {
               <Text fontSize="$5" fontWeight="bold" color="$gray12">
                 Today's Workouts
               </Text>
-
               {todayWorkouts.length === 0 ? (
                 <Card elevate size="$4" p="$5" backgroundColor="white">
-                  <YStack ai="center" gap="$3">
-                    <Calendar size={40} color="#d1d5db" />
-                    <YStack ai="center" gap="$1">
-                      <Text fontSize="$4" fontWeight="600" color="$gray12" textAlign="center">
-                        No Scheduled Workouts
-                      </Text>
-                      <Text fontSize="$3" color="$gray10" textAlign="center">
-                        Start a custom workout or check your program schedule
-                      </Text>
-                    </YStack>
-                    <Button
-                      size="$4"
-                      backgroundColor="#7c3aed"
-                      color="white"
-                      icon={Play}
-                      onPress={handleStartCustomWorkout}
-                    >
-                      Start Custom Workout
-                    </Button>
+                  <YStack ai="center" gap="$2">
+                    <Dumbbell size={32} color="#d1d5db" />
+                    <Text fontSize="$4" color="$gray10" textAlign="center">
+                      No scheduled workouts for today
+                    </Text>
                   </YStack>
                 </Card>
               ) : (
@@ -229,27 +230,22 @@ export default function AthleteHomeScreen() {
                     backgroundColor="white"
                   >
                     <YStack gap="$3">
-                      <YStack gap="$2">
-                        <Text fontSize="$6" fontWeight="bold" color="$gray12">
+                      <YStack gap="$1">
+                        <Text fontSize="$2" color="$gray10">
+                          {workout.day_of_week}
+                        </Text>
+                        <Text fontSize="$5" fontWeight="bold" color="$gray12">
                           {workout.name}
                         </Text>
                         {workout.description && (
-                          <Text fontSize="$3" color="$gray10">
+                          <Text fontSize="$3" color="$gray10" numberOfLines={2}>
                             {workout.description}
                           </Text>
-                        )}
-                        {workout.estimated_duration_minutes && (
-                          <XStack ai="center" gap="$2">
-                            <Dumbbell size={16} color="#6b7280" />
-                            <Text fontSize="$3" color="$gray10">
-                              Estimated {workout.estimated_duration_minutes} minutes
-                            </Text>
-                          </XStack>
                         )}
                       </YStack>
                       <Button
                         size="$4"
-                        backgroundColor="#7c3aed"
+                        backgroundColor="#16a34a"
                         color="white"
                         icon={Play}
                         onPress={() => handleStartWorkout(workout)}
@@ -285,7 +281,7 @@ export default function AthleteHomeScreen() {
         </ScrollView>
 
         {/* Active Workout Bar */}
-        {isWorkoutActive && (
+        {isWorkoutActive && activeSession && startTime && (
           <YStack 
             position="absolute" 
             bottom={Platform.OS === 'ios' ? 88 : 60} 
@@ -294,9 +290,10 @@ export default function AthleteHomeScreen() {
             pointerEvents="box-none"
           >
             <ActiveWorkoutBar
-              workoutName={activeWorkout.name}
-              startTime={activeWorkout.startTime}
-              exerciseCount={activeWorkout.exercises.length}
+              workoutName={activeSession.name}
+              startTime={startTime}
+              exerciseCount={0}
+              onPress={handleResumeWorkout}
             />
           </YStack>
         )}
