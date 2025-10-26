@@ -1,23 +1,21 @@
 import { router } from 'expo-router';
 import { Plus, Search, TrendingUp } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Platform, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Input, Text, XStack, YStack } from 'tamagui';
 import { ActiveWorkoutBar } from '../../../components/ActiveWorkoutBar';
+import { exerciseService } from '../../../services/exercise.service';
+import { Exercise, ExerciseCategory } from '../../../types/database.types';
+import { useAuth } from '../../../contexts/AuthContext';
 
-const mockExercises = [
-  { id: '1', name: 'Squat', category: 'Legs', pr: '315 lbs', lastUsed: '2 days ago' },
-  { id: '2', name: 'Bench Press', category: 'Chest', pr: '225 lbs', lastUsed: '3 days ago' },
-  { id: '3', name: 'Deadlift', category: 'Back', pr: '405 lbs', lastUsed: '5 days ago' },
-  { id: '4', name: 'Overhead Press', category: 'Shoulders', pr: '135 lbs', lastUsed: '1 week ago' },
-  { id: '5', name: 'Barbell Row', category: 'Back', pr: '185 lbs', lastUsed: '3 days ago' },
-  { id: '6', name: 'Romanian Deadlift', category: 'Legs', pr: '275 lbs', lastUsed: '5 days ago' },
-];
-
-const categories = ['All', 'Legs', 'Chest', 'Back', 'Shoulders', 'Arms'];
+const categories = ['All', 'Legs', 'Chest', 'Back', 'Shoulders', 'Arms', 'Core', 'Full Body'];
 
 export default function ExercisesIndexScreen() {
+  const { user } = useAuth();
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [filteredExercises, setFilteredExercises] = useState<Exercise[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -29,12 +27,60 @@ export default function ExercisesIndexScreen() {
     router.push('/create-exercise');
   };
 
+  // Fetch exercises on mount
+  useEffect(() => {
+    loadExercises();
+  }, []);
+
+  const loadExercises = async () => {
+    try {
+      setLoading(true);
+      const data = await exerciseService.getAllExercises(user?.id);
+      setExercises(data);
+      setFilteredExercises(data);
+    } catch (error) {
+      console.error('Error loading exercises:', error);
+      alert('Failed to load exercises. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter exercises when search query or category changes
+  useEffect(() => {
+    let filtered = exercises;
+
+    // Filter by category
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(
+        (exercise) => exercise.category.toLowerCase() === selectedCategory.toLowerCase().replace(' ', '_')
+      );
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      filtered = filtered.filter((exercise) =>
+        exercise.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    setFilteredExercises(filtered);
+  }, [searchQuery, selectedCategory, exercises]);
+
   // Mock active workout data - in real app, get from context: const { activeWorkout, isWorkoutActive } = useWorkout();
   const isWorkoutActive = false;
   const activeWorkout = {
     name: 'Upper Body A',
     startTime: Date.now() - 600000,
     exercises: [{ id: '1' }, { id: '2' }]
+  };
+
+  // Helper function to format category for display
+  const formatCategory = (category: ExerciseCategory): string => {
+    return category
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   return (
@@ -109,51 +155,82 @@ export default function ExercisesIndexScreen() {
               <Text fontSize="$5" fontWeight="bold" color="$gray12">
                 Your Exercises
               </Text>
-              {mockExercises.map((exercise) => (
-                <Card
-                  key={exercise.id}
-                  elevate
-                  size="$4"
-                  p="$4"
-                  backgroundColor="white"
-                  pressStyle={{ opacity: 0.7, scale: 0.98 }}
-                  onPress={() => handleExercisePress(exercise.id)}
-                >
-                  <XStack ai="center" jc="space-between">
-                    <YStack gap="$2" f={1}>
-                      <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                        {exercise.name}
-                      </Text>
-                      <XStack ai="center" gap="$2">
-                        <XStack
-                          backgroundColor="#faf5ff"
-                          px="$2"
-                          py="$1"
-                          borderRadius="$2"
-                        >
-                          <Text fontSize="$1" fontWeight="600" color="#7c3aed">
-                            {exercise.category}
-                          </Text>
-                        </XStack>
-                        <Text fontSize="$3" color="$gray10">
-                          Last used: {exercise.lastUsed}
-                        </Text>
-                      </XStack>
-                    </YStack>
-                    <YStack ai="flex-end" gap="$1">
-                      <XStack ai="center" gap="$1">
-                        <TrendingUp size={16} color="#7c3aed" />
-                        <Text fontSize="$5" fontWeight="bold" color="#7c3aed">
-                          {exercise.pr}
-                        </Text>
-                      </XStack>
-                      <Text fontSize="$2" color="$gray10">
-                        PR
-                      </Text>
-                    </YStack>
-                  </XStack>
+
+              {loading ? (
+                <YStack ai="center" jc="center" py="$8">
+                  <ActivityIndicator size="large" color="#7c3aed" />
+                  <Text fontSize="$4" color="$gray10" mt="$4">
+                    Loading exercises...
+                  </Text>
+                </YStack>
+              ) : filteredExercises.length === 0 ? (
+                <Card elevate size="$4" p="$6" backgroundColor="white">
+                  <YStack ai="center" gap="$3">
+                    <Text fontSize="$4" color="$gray10" textAlign="center">
+                      {searchQuery || selectedCategory !== 'All'
+                        ? 'No exercises found matching your filters.'
+                        : 'No exercises available. Create your first custom exercise!'}
+                    </Text>
+                    {!searchQuery && selectedCategory === 'All' && (
+                      <Button
+                        size="$4"
+                        backgroundColor="#7c3aed"
+                        color="white"
+                        onPress={handleCreateExercise}
+                        pressStyle={{ backgroundColor: '#6d28d9' }}
+                      >
+                        Create Exercise
+                      </Button>
+                    )}
+                  </YStack>
                 </Card>
-              ))}
+              ) : (
+                filteredExercises.map((exercise) => (
+                  <Card
+                    key={exercise.id}
+                    elevate
+                    size="$4"
+                    p="$4"
+                    backgroundColor="white"
+                    pressStyle={{ opacity: 0.7, scale: 0.98 }}
+                    onPress={() => handleExercisePress(exercise.id)}
+                  >
+                    <XStack ai="center" jc="space-between">
+                      <YStack gap="$2" f={1}>
+                        <XStack ai="center" gap="$2">
+                          <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                            {exercise.name}
+                          </Text>
+                          {exercise.is_custom && (
+                            <XStack
+                              backgroundColor="#dbeafe"
+                              px="$2"
+                              py="$1"
+                              borderRadius="$2"
+                            >
+                              <Text fontSize="$1" fontWeight="600" color="#2563eb">
+                                Custom
+                              </Text>
+                            </XStack>
+                          )}
+                        </XStack>
+                        <XStack ai="center" gap="$2">
+                          <XStack
+                            backgroundColor="#faf5ff"
+                            px="$2"
+                            py="$1"
+                            borderRadius="$2"
+                          >
+                            <Text fontSize="$1" fontWeight="600" color="#7c3aed">
+                              {formatCategory(exercise.category)}
+                            </Text>
+                          </XStack>
+                        </XStack>
+                      </YStack>
+                    </XStack>
+                  </Card>
+                ))
+              )}
             </YStack>
           </YStack>
         </ScrollView>
