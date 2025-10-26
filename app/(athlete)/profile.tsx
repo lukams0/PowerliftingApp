@@ -1,28 +1,99 @@
 import { router } from 'expo-router';
-import { Award, Settings, TrendingUp, User } from 'lucide-react-native';
-import React from 'react';
-import { Platform, ScrollView } from 'react-native';
+import { Award, Calendar, Ruler, Scale, Settings, TrendingUp, User } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Platform, RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, Text, XStack, YStack } from 'tamagui';
+import { Button, Card, Spinner, Text, XStack, YStack } from 'tamagui';
 import { ActiveWorkoutBar } from '../../components/ActiveWorkoutBar';
+import { useAuth } from '../../contexts/AuthContext';
+import { profileService } from '../../services/profile.service';
+import { AthleteProfile } from '../../types/database.types';
 
 export default function ProfileScreen() {
-  // Mock active workout data - in real app, get from context: const { activeWorkout, isWorkoutActive } = useWorkout();
-  const isWorkoutActive = false; // Change to true to test
+  const { user, profile } = useAuth();
+  const [athleteProfile, setAthleteProfile] = useState<AthleteProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Mock active workout data - in real app, get from context
+  const isWorkoutActive = false;
   const activeWorkout = {
     name: 'Upper Body A',
     startTime: Date.now() - 600000,
     exercises: [{ id: '1' }, { id: '2' }]
   };
 
+  useEffect(() => {
+    loadAthleteProfile();
+  }, [user]);
+
+  const loadAthleteProfile = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const data = await profileService.getAthleteProfile(user.id);
+      setAthleteProfile(data);
+    } catch (error) {
+      console.error('Error loading athlete profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAthleteProfile();
+    setRefreshing(false);
+  };
+
   const handleSettingsPress = () => {
     router.push('/settings.modal');
   };
 
+  const getExperienceLevelDisplay = (level: string | null | undefined) => {
+    if (!level) return 'Not Set';
+    return level.charAt(0).toUpperCase() + level.slice(1);
+  };
+
+  const formatHeight = (inches: number | null | undefined) => {
+    if (!inches) return 'Not Set';
+    const feet = Math.floor(inches / 12);
+    const remainingInches = Math.round(inches % 12);
+    return `${feet}'${remainingInches}"`;
+  };
+
+  const formatWeight = (lbs: number | null | undefined) => {
+    if (!lbs) return 'Not Set';
+    return `${Math.round(lbs)} lbs`;
+  };
+
+  const getGenderDisplay = (gender: string | null | undefined) => {
+    if (!gender) return 'Not Set';
+    return gender.charAt(0).toUpperCase() + gender.slice(1);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
+        <YStack f={1} ai="center" jc="center">
+          <Spinner size="large" color="#7c3aed" />
+          <Text fontSize="$4" color="$gray10" mt="$4">
+            Loading profile...
+          </Text>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
       <YStack f={1} backgroundColor="#f5f5f5">
-        <ScrollView>
+        <ScrollView
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
           <YStack p="$4" gap="$4">
             {/* Header */}
             <XStack ai="center" jc="space-between">
@@ -55,25 +126,53 @@ export default function ProfileScreen() {
                 </YStack>
                 <YStack ai="center" gap="$1">
                   <Text fontSize="$7" fontWeight="bold" color="$gray12">
-                    John Doe
+                    {profile?.full_name || 'User'}
                   </Text>
                   <Text fontSize="$4" color="$gray10">
-                    Intermediate Lifter
+                    {getExperienceLevelDisplay(athleteProfile?.experience_level)} Lifter
                   </Text>
+                  {athleteProfile?.age && (
+                    <Text fontSize="$3" color="$gray10">
+                      {athleteProfile.age} years old
+                    </Text>
+                  )}
                 </YStack>
               </YStack>
             </Card>
 
-            {/* Stats Grid */}
+            {/* Profile Completion Notice */}
+            {!athleteProfile && (
+              <Card elevate size="$4" p="$4" backgroundColor="#fef3c7">
+                <YStack gap="$3">
+                  <Text fontSize="$4" fontWeight="bold" color="#92400e">
+                    Complete Your Profile
+                  </Text>
+                  <Text fontSize="$3" color="#78350f" lineHeight="$4">
+                    Add your information to get personalized recommendations and track your progress.
+                  </Text>
+                  <Button
+                    size="$4"
+                    backgroundColor="#7c3aed"
+                    color="white"
+                    onPress={() => router.push('/settings/profile')}
+                    pressStyle={{ backgroundColor: '#6d28d9' }}
+                  >
+                    Complete Profile
+                  </Button>
+                </YStack>
+              </Card>
+            )}
+
+            {/* Stats Overview - Placeholder for future workout stats */}
             <YStack gap="$3">
               <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                Stats
+                Stats Overview
               </Text>
               <XStack gap="$3">
                 <Card elevate f={1} p="$4" backgroundColor="white">
                   <YStack gap="$2" ai="center">
                     <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
-                      24
+                      0
                     </Text>
                     <Text fontSize="$3" color="$gray10" textAlign="center">
                       Workouts
@@ -83,17 +182,92 @@ export default function ProfileScreen() {
                 <Card elevate f={1} p="$4" backgroundColor="white">
                   <YStack gap="$2" ai="center">
                     <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
-                      185
+                      0
                     </Text>
                     <Text fontSize="$3" color="$gray10" textAlign="center">
-                      lbs
+                      Total Sets
                     </Text>
                   </YStack>
                 </Card>
               </XStack>
             </YStack>
 
-            {/* Personal Records */}
+            {/* Body Stats */}
+            {athleteProfile && (
+              <YStack gap="$3">
+                <XStack ai="center" gap="$2">
+                  <TrendingUp size={20} color="#7c3aed" />
+                  <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                    Body Stats
+                  </Text>
+                </XStack>
+                <Card elevate size="$4" p="$4" backgroundColor="white">
+                  <YStack gap="$3">
+                    <XStack ai="center" jc="space-between">
+                      <XStack ai="center" gap="$2">
+                        <Scale size={18} color="#9ca3af" />
+                        <Text fontSize="$4" color="$gray11">
+                          Weight
+                        </Text>
+                      </XStack>
+                      <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                        {formatWeight(athleteProfile.weight_lbs)}
+                      </Text>
+                    </XStack>
+                    <XStack ai="center" jc="space-between">
+                      <XStack ai="center" gap="$2">
+                        <Ruler size={18} color="#9ca3af" />
+                        <Text fontSize="$4" color="$gray11">
+                          Height
+                        </Text>
+                      </XStack>
+                      <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                        {formatHeight(athleteProfile.height_inches)}
+                      </Text>
+                    </XStack>
+                    <XStack ai="center" jc="space-between">
+                      <XStack ai="center" gap="$2">
+                        <Calendar size={18} color="#9ca3af" />
+                        <Text fontSize="$4" color="$gray11">
+                          Gender
+                        </Text>
+                      </XStack>
+                      <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                        {getGenderDisplay(athleteProfile.gender)}
+                      </Text>
+                    </XStack>
+                  </YStack>
+                </Card>
+              </YStack>
+            )}
+
+            {/* Goals Section */}
+            {athleteProfile?.goals && athleteProfile.goals.length > 0 && (
+              <YStack gap="$3">
+                <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                  Your Goals
+                </Text>
+                <Card elevate size="$4" p="$4" backgroundColor="white">
+                  <YStack gap="$2">
+                    {athleteProfile.goals.map((goal, index) => (
+                      <XStack key={index} ai="center" gap="$2">
+                        <YStack
+                          w={8}
+                          h={8}
+                          borderRadius="$10"
+                          backgroundColor="#7c3aed"
+                        />
+                        <Text fontSize="$4" color="$gray11">
+                          {goal.charAt(0).toUpperCase() + goal.slice(1).replace('_', ' ')}
+                        </Text>
+                      </XStack>
+                    ))}
+                  </YStack>
+                </Card>
+              </YStack>
+            )}
+
+            {/* Personal Records - Placeholder for future PR tracking */}
             <YStack gap="$3">
               <XStack ai="center" gap="$2">
                 <Award size={20} color="#7c3aed" />
@@ -101,54 +275,47 @@ export default function ProfileScreen() {
                   Personal Records
                 </Text>
               </XStack>
-              <Card elevate size="$4" p="$4" backgroundColor="white">
-                <YStack gap="$3">
-                  {['Squat', 'Bench Press', 'Deadlift'].map((exercise) => (
-                    <XStack key={exercise} ai="center" jc="space-between">
-                      <Text fontSize="$4" color="$gray11">
-                        {exercise}
-                      </Text>
-                      <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                        315 lbs
-                      </Text>
-                    </XStack>
-                  ))}
+              <Card elevate size="$4" p="$5" backgroundColor="#faf5ff">
+                <YStack ai="center" gap="$3">
+                  <Award size={40} color="#7c3aed" />
+                  <YStack ai="center" gap="$1">
+                    <Text fontSize="$4" fontWeight="bold" color="$gray12" textAlign="center">
+                      Track Your PRs
+                    </Text>
+                    <Text fontSize="$3" color="$gray10" textAlign="center">
+                      Start logging workouts to track your personal records
+                    </Text>
+                  </YStack>
                 </YStack>
               </Card>
             </YStack>
 
-            {/* Body Stats */}
+            {/* Account Info */}
             <YStack gap="$3">
-              <XStack ai="center" gap="$2">
-                <TrendingUp size={20} color="#7c3aed" />
-                <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                  Body Stats
-                </Text>
-              </XStack>
+              <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                Account
+              </Text>
               <Card elevate size="$4" p="$4" backgroundColor="white">
                 <YStack gap="$3">
                   <XStack ai="center" jc="space-between">
                     <Text fontSize="$4" color="$gray11">
-                      Weight
+                      Email
                     </Text>
-                    <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                      185 lbs
-                    </Text>
-                  </XStack>
-                  <XStack ai="center" jc="space-between">
-                    <Text fontSize="$4" color="$gray11">
-                      Height
-                    </Text>
-                    <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                      5'10"
+                    <Text fontSize="$4" fontWeight="500" color="$gray12">
+                      {profile?.email}
                     </Text>
                   </XStack>
                   <XStack ai="center" jc="space-between">
                     <Text fontSize="$4" color="$gray11">
-                      Age
+                      Member Since
                     </Text>
-                    <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                      28
+                    <Text fontSize="$4" fontWeight="500" color="$gray12">
+                      {profile?.created_at 
+                        ? new Date(profile.created_at).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            year: 'numeric' 
+                          })
+                        : 'N/A'}
                     </Text>
                   </XStack>
                 </YStack>

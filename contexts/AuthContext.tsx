@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
   useEffect(() => {
     // Get initial session
@@ -59,11 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event);
+        
+        // Skip INITIAL_SESSION since we handle it in initializeAuth
+        if (event === 'INITIAL_SESSION') {
+          console.log('Skipping INITIAL_SESSION - already handled in init');
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user) {
-          console.log('Loading profile after auth change for user:', session.user.id);
+        if (session?.user && event === 'SIGNED_IN') {
+          console.log('Loading profile after sign in for user:', session.user.id);
           await loadProfile(session.user.id);
         } else {
           console.log('No user after auth change, clearing profile');
@@ -78,43 +86,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadProfile = async (userId: string) => {
-    // Create a timeout promise
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Profile load timeout')), PROFILE_LOAD_TIMEOUT);
-    });
-
-    try {
-      console.log('Loading profile for:', userId);
-      
-      // Race between the actual load and the timeout
-      const userProfile = await Promise.race([
-        profileService.getProfile(userId),
-        timeoutPromise
-      ]) as Profile | null;
-      
-      console.log('Profile loaded:', !!userProfile);
-      
-      if (!userProfile) {
-        console.warn('⚠️ Profile not found for user:', userId);
-        console.log('This is normal during initial signup or if profile was deleted');
-        setProfile(null);
-        return;
-      }
-      
-      setProfile(userProfile);
-    } catch (error: any) {
-      console.error('Error loading profile:', error);
-      
-      // If it's a timeout, log it specifically
-      if (error.message === 'Profile load timeout') {
-        console.error('❌ Profile load timed out after', PROFILE_LOAD_TIMEOUT / 1000, 'seconds');
-      }
-      
-      console.log('Setting profile to null and continuing...');
-      setProfile(null);
-      // Don't throw - allow the app to continue even if profile load fails
-    }
-  };
+  if (loadingProfile) return;
+  setLoadingProfile(true);
+  try {
+    const userProfile = await profileService.getProfile(userId); // no UI timeout
+    setProfile(userProfile ?? null);
+  } catch (err: any) {
+    // You’ll still see “Query timeout” from the service if it happens
+    console.error('Error loading profile:', err);
+    setProfile(null);
+  } finally {
+    setLoadingProfile(false);
+  }
+};
 
   const signUp = async (data: SignUpData) => {
     try {

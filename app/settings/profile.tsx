@@ -1,346 +1,303 @@
 import { router } from 'expo-router';
-import { Award, Calendar, Ruler, Scale, Settings, TrendingUp, User } from 'lucide-react-native';
+import { ArrowLeft, Calendar, Mail, Save, User } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Platform, RefreshControl, ScrollView } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, Spinner, Text, XStack, YStack } from 'tamagui';
-import { ActiveWorkoutBar } from '../../components/ActiveWorkoutBar';
+import { Button, Card, Input, Spinner, Text, XStack, YStack } from 'tamagui';
 import { useAuth } from '../../contexts/AuthContext';
 import { profileService } from '../../services/profile.service';
-import { AthleteProfile } from '../../types/database.types';
 
-export default function ProfileScreen() {
-  const { user, profile } = useAuth();
-  const [athleteProfile, setAthleteProfile] = useState<AthleteProfile | null>(null);
+export default function ProfileInformationSettings() {
+  const { user, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Mock active workout data - in real app, get from context
-  const isWorkoutActive = false;
-  const activeWorkout = {
-    name: 'Upper Body A',
-    startTime: Date.now() - 600000,
-    exercises: [{ id: '1' }, { id: '2' }]
-  };
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    loadAthleteProfile();
-  }, [user]);
+    loadProfile();
+  }, []);
 
-  const loadAthleteProfile = async () => {
-    if (!user) return;
-
+  const loadProfile = async () => {
     try {
+      if (!user) return;
+
       setLoading(true);
-      const data = await profileService.getAthleteProfile(user.id);
-      setAthleteProfile(data);
-    } catch (error) {
-      console.error('Error loading athlete profile:', error);
+      const profile = await profileService.getProfile(user.id);
+      const athleteProfile = await profileService.getAthleteProfile(user.id);
+
+      if (profile) {
+        setName(profile.full_name || '');
+        setEmail(profile.email);
+      }
+
+      if (athleteProfile) {
+        setAge(athleteProfile.age?.toString() || '');
+        setGender(athleteProfile.gender || '');
+      }
+    } catch (err) {
+      console.error('Load profile error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadAthleteProfile();
-    setRefreshing(false);
+  const handleBack = () => {
+    router.back();
   };
 
-  const handleSettingsPress = () => {
-    router.push('/settings.modal');
-  };
+  const handleSave = async () => {
+    try {
+      if (!user) return;
 
-  const getExperienceLevelDisplay = (level: string | null | undefined) => {
-    if (!level) return 'Not Set';
-    return level.charAt(0).toUpperCase() + level.slice(1);
-  };
+      setError('');
+      setIsSaving(true);
 
-  const formatHeight = (inches: number | null | undefined) => {
-    if (!inches) return 'Not Set';
-    const feet = Math.floor(inches / 12);
-    const remainingInches = Math.round(inches % 12);
-    return `${feet}'${remainingInches}"`;
-  };
+      // Update main profile
+      await profileService.updateProfile(user.id, {
+        full_name: name,
+      });
 
-  const formatWeight = (lbs: number | null | undefined) => {
-    if (!lbs) return 'Not Set';
-    return `${Math.round(lbs)} lbs`;
-  };
+      // Update athlete profile
+      const athleteProfile = await profileService.getAthleteProfile(user.id);
+      if (athleteProfile) {
+        await profileService.updateAthleteProfile(user.id, {
+          age: age ? parseInt(age) : null,
+          gender: gender || null,
+        });
+      }
 
-  const getGenderDisplay = (gender: string | null | undefined) => {
-    if (!gender) return 'Not Set';
-    return gender.charAt(0).toUpperCase() + gender.slice(1);
+      await refreshProfile();
+
+      Alert.alert('Success', 'Profile updated successfully!', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } catch (err: any) {
+      console.error('Save profile error:', err);
+      setError(err.message || 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
-        <YStack f={1} ai="center" jc="center">
-          <Spinner size="large" color="#7c3aed" />
-          <Text fontSize="$4" color="$gray10" mt="$4">
-            Loading profile...
-          </Text>
-        </YStack>
-      </SafeAreaView>
+      <YStack f={1} ai="center" jc="center" backgroundColor="#f5f5f5">
+        <Spinner size="large" color="#7c3aed" />
+        <Text fontSize="$4" color="$gray10" mt="$4">
+          Loading profile...
+        </Text>
+      </YStack>
     );
   }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
-      <YStack f={1} backgroundColor="#f5f5f5">
-        <ScrollView
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
-          <YStack p="$4" gap="$4">
-            {/* Header */}
-            <XStack ai="center" jc="space-between">
-              <Text fontSize="$8" fontWeight="bold" color="$gray12">
-                Profile
-              </Text>
-              <Button
-                size="$3"
-                chromeless
-                color="$gray11"
-                onPress={handleSettingsPress}
-                pressStyle={{ opacity: 0.7 }}
-              >
-                <Settings size={24} color="#6b7280" />
-              </Button>
-            </XStack>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <YStack f={1} backgroundColor="#f5f5f5">
+          {/* Header */}
+          <XStack
+            backgroundColor="#f5f5f5"
+            p="$4"
+            ai="center"
+            gap="$3"
+          >
+            <Button
+              size="$3"
+              chromeless
+              onPress={handleBack}
+              pressStyle={{ opacity: 0.7 }}
+            >
+              <ArrowLeft size={24} color="#6b7280" />
+            </Button>
+            <Text fontSize="$7" fontWeight="bold" color="$gray12">
+              Profile Information
+            </Text>
+          </XStack>
 
-            {/* User Info Card */}
-            <Card elevate size="$4" p="$5" backgroundColor="white">
+          <ScrollView>
+            <YStack p="$4" gap="$4">
+              {/* Profile Picture */}
               <YStack ai="center" gap="$3">
                 <YStack
-                  w={80}
-                  h={80}
+                  w={100}
+                  h={100}
                   borderRadius="$12"
                   backgroundColor="#7c3aed"
                   ai="center"
                   jc="center"
                 >
-                  <User size={40} color="white" />
+                  <User size={50} color="white" />
                 </YStack>
-                <YStack ai="center" gap="$1">
-                  <Text fontSize="$7" fontWeight="bold" color="$gray12">
-                    {profile?.full_name || 'User'}
-                  </Text>
-                  <Text fontSize="$4" color="$gray10">
-                    {getExperienceLevelDisplay(athleteProfile?.experience_level)} Lifter
-                  </Text>
-                  {athleteProfile?.age && (
-                    <Text fontSize="$3" color="$gray10">
-                      {athleteProfile.age} years old
-                    </Text>
-                  )}
-                </YStack>
+                <Button
+                  size="$3"
+                  chromeless
+                  color="#7c3aed"
+                  fontWeight="600"
+                  onPress={() => console.log('Change photo')}
+                >
+                  Change Photo
+                </Button>
               </YStack>
-            </Card>
 
-            {/* Profile Completion Notice */}
-            {!athleteProfile && (
-              <Card elevate size="$4" p="$4" backgroundColor="#fef3c7">
-                <YStack gap="$3">
-                  <Text fontSize="$4" fontWeight="bold" color="#92400e">
-                    Complete Your Profile
+              {/* Error Message */}
+              {error && (
+                <YStack
+                  backgroundColor="#fee2e2"
+                  p="$3"
+                  borderRadius="$3"
+                  borderWidth={1}
+                  borderColor="#ef4444"
+                >
+                  <Text fontSize="$3" color="#dc2626">
+                    {error}
                   </Text>
-                  <Text fontSize="$3" color="#78350f" lineHeight="$4">
-                    Add your information to get personalized recommendations and track your progress.
-                  </Text>
-                  <Button
-                    size="$4"
-                    backgroundColor="#7c3aed"
-                    color="white"
-                    onPress={() => router.push('/settings/profile')}
-                    pressStyle={{ backgroundColor: '#6d28d9' }}
-                  >
-                    Complete Profile
-                  </Button>
                 </YStack>
-              </Card>
-            )}
+              )}
 
-            {/* Stats Overview - Placeholder for future workout stats */}
-            <YStack gap="$3">
-              <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                Stats Overview
-              </Text>
-              <XStack gap="$3">
-                <Card elevate f={1} p="$4" backgroundColor="white">
-                  <YStack gap="$2" ai="center">
-                    <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
-                      0
-                    </Text>
-                    <Text fontSize="$3" color="$gray10" textAlign="center">
-                      Workouts
-                    </Text>
-                  </YStack>
-                </Card>
-                <Card elevate f={1} p="$4" backgroundColor="white">
-                  <YStack gap="$2" ai="center">
-                    <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
-                      0
-                    </Text>
-                    <Text fontSize="$3" color="$gray10" textAlign="center">
-                      Total Sets
-                    </Text>
-                  </YStack>
-                </Card>
-              </XStack>
-            </YStack>
-
-            {/* Body Stats */}
-            {athleteProfile && (
-              <YStack gap="$3">
-                <XStack ai="center" gap="$2">
-                  <TrendingUp size={20} color="#7c3aed" />
-                  <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                    Body Stats
-                  </Text>
-                </XStack>
-                <Card elevate size="$4" p="$4" backgroundColor="white">
-                  <YStack gap="$3">
-                    <XStack ai="center" jc="space-between">
-                      <XStack ai="center" gap="$2">
-                        <Scale size={18} color="#9ca3af" />
-                        <Text fontSize="$4" color="$gray11">
-                          Weight
-                        </Text>
-                      </XStack>
-                      <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                        {formatWeight(athleteProfile.weight_lbs)}
-                      </Text>
-                    </XStack>
-                    <XStack ai="center" jc="space-between">
-                      <XStack ai="center" gap="$2">
-                        <Ruler size={18} color="#9ca3af" />
-                        <Text fontSize="$4" color="$gray11">
-                          Height
-                        </Text>
-                      </XStack>
-                      <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                        {formatHeight(athleteProfile.height_inches)}
-                      </Text>
-                    </XStack>
-                    <XStack ai="center" jc="space-between">
-                      <XStack ai="center" gap="$2">
-                        <Calendar size={18} color="#9ca3af" />
-                        <Text fontSize="$4" color="$gray11">
-                          Gender
-                        </Text>
-                      </XStack>
-                      <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                        {getGenderDisplay(athleteProfile.gender)}
-                      </Text>
-                    </XStack>
-                  </YStack>
-                </Card>
-              </YStack>
-            )}
-
-            {/* Goals Section */}
-            {athleteProfile?.goals && athleteProfile.goals.length > 0 && (
-              <YStack gap="$3">
-                <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                  Your Goals
-                </Text>
-                <Card elevate size="$4" p="$4" backgroundColor="white">
-                  <YStack gap="$2">
-                    {athleteProfile.goals.map((goal, index) => (
-                      <XStack key={index} ai="center" gap="$2">
-                        <YStack
-                          w={8}
-                          h={8}
-                          borderRadius="$10"
-                          backgroundColor="#7c3aed"
-                        />
-                        <Text fontSize="$4" color="$gray11">
-                          {goal.charAt(0).toUpperCase() + goal.slice(1).replace('_', ' ')}
-                        </Text>
-                      </XStack>
-                    ))}
-                  </YStack>
-                </Card>
-              </YStack>
-            )}
-
-            {/* Personal Records - Placeholder for future PR tracking */}
-            <YStack gap="$3">
-              <XStack ai="center" gap="$2">
-                <Award size={20} color="#7c3aed" />
-                <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                  Personal Records
-                </Text>
-              </XStack>
-              <Card elevate size="$4" p="$5" backgroundColor="#faf5ff">
-                <YStack ai="center" gap="$3">
-                  <Award size={40} color="#7c3aed" />
-                  <YStack ai="center" gap="$1">
-                    <Text fontSize="$4" fontWeight="bold" color="$gray12" textAlign="center">
-                      Track Your PRs
-                    </Text>
-                    <Text fontSize="$3" color="$gray10" textAlign="center">
-                      Start logging workouts to track your personal records
-                    </Text>
-                  </YStack>
-                </YStack>
-              </Card>
-            </YStack>
-
-            {/* Account Info */}
-            <YStack gap="$3">
-              <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                Account
-              </Text>
+              {/* Name */}
               <Card elevate size="$4" p="$4" backgroundColor="white">
                 <YStack gap="$3">
-                  <XStack ai="center" jc="space-between">
-                    <Text fontSize="$4" color="$gray11">
-                      Email
-                    </Text>
-                    <Text fontSize="$4" fontWeight="500" color="$gray12">
-                      {profile?.email}
+                  <XStack ai="center" gap="$2">
+                    <User size={20} color="#7c3aed" />
+                    <Text fontSize="$4" fontWeight="600" color="$gray12">
+                      Full Name
                     </Text>
                   </XStack>
-                  <XStack ai="center" jc="space-between">
-                    <Text fontSize="$4" color="$gray11">
-                      Member Since
+                  <Input
+                    size="$4"
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Enter your name"
+                    borderColor="#e9d5ff"
+                    focusStyle={{ borderColor: '#7c3aed' }}
+                  />
+                </YStack>
+              </Card>
+
+              {/* Email */}
+              <Card elevate size="$4" p="$4" backgroundColor="white">
+                <YStack gap="$3">
+                  <XStack ai="center" gap="$2">
+                    <Mail size={20} color="#7c3aed" />
+                    <Text fontSize="$4" fontWeight="600" color="$gray12">
+                      Email Address
                     </Text>
-                    <Text fontSize="$4" fontWeight="500" color="$gray12">
-                      {profile?.created_at 
-                        ? new Date(profile.created_at).toLocaleDateString('en-US', { 
-                            month: 'short', 
-                            year: 'numeric' 
-                          })
-                        : 'N/A'}
+                  </XStack>
+                  <Input
+                    size="$4"
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Enter your email"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    borderColor="#e9d5ff"
+                    focusStyle={{ borderColor: '#7c3aed' }}
+                    disabled
+                    opacity={0.6}
+                  />
+                  <Text fontSize="$2" color="$gray10">
+                    Email cannot be changed
+                  </Text>
+                </YStack>
+              </Card>
+
+              {/* Age */}
+              <Card elevate size="$4" p="$4" backgroundColor="white">
+                <YStack gap="$3">
+                  <XStack ai="center" gap="$2">
+                    <Calendar size={20} color="#7c3aed" />
+                    <Text fontSize="$4" fontWeight="600" color="$gray12">
+                      Age
                     </Text>
+                  </XStack>
+                  <Input
+                    size="$4"
+                    value={age}
+                    onChangeText={setAge}
+                    placeholder="Enter your age"
+                    keyboardType="number-pad"
+                    borderColor="#e9d5ff"
+                    focusStyle={{ borderColor: '#7c3aed' }}
+                  />
+                </YStack>
+              </Card>
+
+              {/* Gender */}
+              <Card elevate size="$4" p="$4" backgroundColor="white">
+                <YStack gap="$3">
+                  <Text fontSize="$4" fontWeight="600" color="$gray12">
+                    Gender
+                  </Text>
+                  <XStack gap="$3">
+                    <Button
+                      f={1}
+                      size="$4"
+                      backgroundColor={gender === 'male' ? '#7c3aed' : 'white'}
+                      color={gender === 'male' ? 'white' : '$gray11'}
+                      borderColor="#e9d5ff"
+                      borderWidth={2}
+                      onPress={() => setGender('male')}
+                      pressStyle={{ opacity: 0.8 }}
+                    >
+                      Male
+                    </Button>
+                    <Button
+                      f={1}
+                      size="$4"
+                      backgroundColor={gender === 'female' ? '#7c3aed' : 'white'}
+                      color={gender === 'female' ? 'white' : '$gray11'}
+                      borderColor="#e9d5ff"
+                      borderWidth={2}
+                      onPress={() => setGender('female')}
+                      pressStyle={{ opacity: 0.8 }}
+                    >
+                      Female
+                    </Button>
+                    <Button
+                      f={1}
+                      size="$4"
+                      backgroundColor={gender === 'other' ? '#7c3aed' : 'white'}
+                      color={gender === 'other' ? 'white' : '$gray11'}
+                      borderColor="#e9d5ff"
+                      borderWidth={2}
+                      onPress={() => setGender('other')}
+                      pressStyle={{ opacity: 0.8 }}
+                    >
+                      Other
+                    </Button>
                   </XStack>
                 </YStack>
               </Card>
-            </YStack>
-          </YStack>
-        </ScrollView>
 
-        {/* Active Workout Bar */}
-        {isWorkoutActive && (
-          <YStack 
-            position="absolute" 
-            bottom={Platform.OS === 'ios' ? 88 : 60} 
-            left={0} 
-            right={0}
-            pointerEvents="box-none"
-          >
-            <ActiveWorkoutBar
-              workoutName={activeWorkout.name}
-              startTime={activeWorkout.startTime}
-              exerciseCount={activeWorkout.exercises.length}
-            />
-          </YStack>
-        )}
-      </YStack>
+              {/* Save Button */}
+              <Button
+                size="$5"
+                backgroundColor="#7c3aed"
+                color="white"
+                onPress={handleSave}
+                disabled={isSaving}
+                opacity={isSaving ? 0.5 : 1}
+                pressStyle={{ backgroundColor: '#6d28d9' }}
+                mt="$2"
+              >
+                <XStack ai="center" gap="$2">
+                  <Save size={20} color="white" />
+                  <Text fontSize="$5" fontWeight="bold" color="white">
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </Text>
+                </XStack>
+              </Button>
+            </YStack>
+          </ScrollView>
+        </YStack>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
