@@ -83,64 +83,66 @@ export function ExerciseSelectorModal({
             />
           </XStack>
 
-          {/* Search Bar */}
-          <XStack
-            ai="center"
-            gap="$2"
-            backgroundColor="#f9fafb"
-            borderRadius="$3"
-            borderWidth={1}
-            borderColor="#e5e7eb"
-            px="$3"
-            py="$2"
-          >
-            <Search size={20} color="#6b7280" />
-            <RNTextInput
-              style={{
-                flex: 1,
-                fontSize: 16,
-                color: '#111827',
-                paddingVertical: 4,
-              }}
-              placeholder="Search exercises..."
-              placeholderTextColor="#9ca3af"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              editable={!disabled}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} disabled={disabled}>
-                <X size={18} color="#6b7280" />
-              </TouchableOpacity>
-            )}
-          </XStack>
-
-          {/* Category Filter */}
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingVertical: 4 }}
-          >
-            <XStack gap="$2">
-              {CATEGORIES.map((category) => (
-                <Button
-                  key={category}
-                  size="$3"
-                  backgroundColor={selectedCategory === category ? '#7c3aed' : 'white'}
-                  borderColor={selectedCategory === category ? '#7c3aed' : '#e5e7eb'}
-                  borderWidth={1}
-                  color={selectedCategory === category ? 'white' : '$gray12'}
-                  onPress={() => setSelectedCategory(category)}
-                  disabled={disabled}
-                  pressStyle={{ 
-                    backgroundColor: selectedCategory === category ? '#6d28d9' : '#f9fafb' 
-                  }}
-                >
-                  {category}
-                </Button>
-              ))}
+          <YStack gap="$2">
+            {/* Search Bar */}
+            <XStack
+              ai="center"
+              gap="$2"
+              backgroundColor="#f9fafb"
+              borderRadius="$3"
+              borderWidth={1}
+              borderColor="#e5e7eb"
+              px="$3"
+              py="$2"
+            >
+              <Search size={20} color="#6b7280" />
+              <RNTextInput
+                style={{
+                  flex: 1,
+                  fontSize: 16,
+                  color: '#111827',
+                  paddingVertical: 4,
+                }}
+                placeholder="Search exercises..."
+                placeholderTextColor="#9ca3af"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                editable={!disabled}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} disabled={disabled}>
+                  <X size={18} color="#6b7280" />
+                </TouchableOpacity>
+              )}
             </XStack>
-          </ScrollView>
+
+            {/* Category Filter */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingVertical: 4 }}
+            >
+              <XStack gap="$2">
+                {CATEGORIES.map((category) => (
+                  <Button
+                    key={category}
+                    size="$3"
+                    backgroundColor={selectedCategory === category ? '#7c3aed' : 'white'}
+                    borderColor={selectedCategory === category ? '#7c3aed' : '#e5e7eb'}
+                    borderWidth={1}
+                    color={selectedCategory === category ? 'white' : '$gray12'}
+                    onPress={() => setSelectedCategory(category)}
+                    disabled={disabled}
+                    pressStyle={{
+                      backgroundColor: selectedCategory === category ? '#6d28d9' : '#f9fafb'
+                    }}
+                  >
+                    {category}
+                  </Button>
+                ))}
+              </XStack>
+            </ScrollView>
+          </YStack>
 
           {/* Results Count */}
           <Text fontSize="$2" color="$gray10">
@@ -148,8 +150,13 @@ export function ExerciseSelectorModal({
           </Text>
 
           {/* Exercise List */}
-          <ScrollView style={{ flex: 1 }}>
-            <YStack gap="$2" pb="$4">
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 16 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <YStack gap="$2">
               {filteredExercises.length === 0 ? (
                 <YStack ai="center" py="$8" gap="$2">
                   <Text fontSize="$4" color="$gray10" textAlign="center">
