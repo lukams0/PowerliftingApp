@@ -150,63 +150,48 @@ export function ExerciseSelectorModal({
           </Text>
 
           {/* Exercise List */}
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ paddingBottom: 16 }}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-          >
-            <YStack gap="$2">
-              {filteredExercises.length === 0 ? (
-                <YStack ai="center" py="$8" gap="$2">
-                  <Text fontSize="$4" color="$gray10" textAlign="center">
-                    No exercises found
-                  </Text>
-                  <Text fontSize="$3" color="$gray9" textAlign="center">
-                    Try adjusting your search or filter
-                  </Text>
-                </YStack>
-              ) : (
-                filteredExercises.map((exercise) => (
-                  <TouchableOpacity
-                    key={exercise.id}
-                    onPress={() => onSelect(exercise)}
-                    disabled={disabled}
-                  >
-                    <YStack
-                      backgroundColor="white"
-                      borderWidth={1}
-                      borderColor="#e5e7eb"
-                      borderRadius="$3"
-                      p="$3"
-                      gap="$2"
-                      pressStyle={{ backgroundColor: '#f9fafb' }}
-                    >
-                      <Text fontSize="$4" fontWeight="600" color="$gray12">
-                        {exercise.name}
-                      </Text>
-                      <Text 
-                        fontSize="$2" 
-                        color="$gray10" 
-                        textTransform="capitalize"
-                      >
-                        {exercise.category.replace('_', ' ')}
-                      </Text>
-                      {exercise.description && (
-                        <Text 
-                          fontSize="$2" 
-                          color="$gray9" 
-                          numberOfLines={2}
-                        >
-                          {exercise.description}
-                        </Text>
-                      )}
-                    </YStack>
-                  </TouchableOpacity>
-                ))
-              )}
-            </YStack>
-          </ScrollView>
+<ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+  <YStack gap="$2" pb="$4">
+    {filteredExercises.length === 0 ? (
+      <YStack ai="center" py="$8" gap="$2">
+        <Text fontSize="$4" color="$gray10" textAlign="center">
+          No exercises found
+        </Text>
+        <Text fontSize="$3" color="$gray9" textAlign="center">
+          Try adjusting your search or filter
+        </Text>
+      </YStack>
+    ) : (
+      filteredExercises.map((exercise) => (
+        <YStack
+          key={exercise.id}
+          onPress={() => onSelect(exercise)}
+          backgroundColor="white"
+          borderWidth={1}
+          borderColor="#e5e7eb"
+          borderRadius="$3"
+          p="$3"
+          gap="$2"
+          pressStyle={{ backgroundColor: '#f9fafb' }}
+          disabled={disabled}
+        >
+          <Text fontSize="$4" fontWeight="600" color="$gray12">
+            {exercise.name}
+          </Text>
+          <Text fontSize="$2" color="$gray10" textTransform="capitalize">
+            {exercise.category.replace(/_/g, ' ')}
+          </Text>
+          {exercise.description && (
+            <Text fontSize="$2" color="$gray9" numberOfLines={2}>
+              {exercise.description}
+            </Text>
+          )}
+        </YStack>
+      ))
+    )}
+  </YStack>
+</ScrollView>
+
         </YStack>
       </Card>
     </YStack>

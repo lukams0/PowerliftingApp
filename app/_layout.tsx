@@ -1,11 +1,13 @@
 import { Stack } from 'expo-router';
+import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { TamaguiProvider } from 'tamagui';
 import { AuthProvider } from '../contexts/AuthContext';
 import { WorkoutProvider } from '../contexts/WorkoutContext';
 import config from '../tamagui.config';
-
 export default function RootLayout() {
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <TamaguiProvider config={config}>
       <AuthProvider>
         <WorkoutProvider>
@@ -24,5 +26,6 @@ export default function RootLayout() {
         </WorkoutProvider>
       </AuthProvider>
     </TamaguiProvider>
+    </GestureHandlerRootView>
   );
 }
