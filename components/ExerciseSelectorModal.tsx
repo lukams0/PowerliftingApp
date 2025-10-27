@@ -8,7 +8,7 @@ const CATEGORIES = ['All', 'Legs', 'Chest', 'Back', 'Shoulders', 'Arms', 'Core',
 
 interface ExerciseSelectorModalProps {
   exercises: Exercise[];
-  onSelect: (exerciseId: string) => void;
+  onSelect: (exercise: Exercise) => void;
   onClose: () => void;
   disabled?: boolean;
 }
@@ -163,7 +163,7 @@ export function ExerciseSelectorModal({
                 filteredExercises.map((exercise) => (
                   <TouchableOpacity
                     key={exercise.id}
-                    onPress={() => onSelect(exercise.id)}
+                    onPress={() => onSelect(exercise)}
                     disabled={disabled}
                   >
                     <YStack

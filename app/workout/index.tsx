@@ -91,22 +91,19 @@ export default function ActiveWorkoutModal() {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleAddExercise = async (exerciseId: string) => {
+  const handleAddExercise = async (selectedExercise: Exercise) => {
     if (!sessionId) return;
 
     try {
       setSaving(true);
       const order = exercises.length;
-      
+
       // Add exercise to session
       const sessionExercise = await workoutSessionService.addExerciseToSession(
         sessionId,
-        exerciseId,
+        selectedExercise.id,
         order
       );
-
-      const exercise = availableExercises.find(e => e.id === exerciseId);
-      if (!exercise) return;
 
       // Automatically add an empty set
       const firstSet = await workoutSessionService.addSetToExercise(
@@ -121,10 +118,10 @@ export default function ActiveWorkoutModal() {
 
       const newExercise: LocalExercise = {
         ...sessionExercise,
-        exercise,
+        exercise: selectedExercise,
         sets: [firstSet]
       };
-      
+
       setExercises(prev => [...prev, newExercise]);
       setShowExercisePicker(false);
     } catch (error) {

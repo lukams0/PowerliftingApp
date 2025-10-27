@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
 import { Award, Calendar, Ruler, Scale, Settings, TrendingUp, User } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Platform, RefreshControl, ScrollView } from 'react-native';
+import { RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Spinner, Text, XStack, YStack } from 'tamagui';
-import { ActiveWorkoutBar } from '../../components/ActiveWorkoutBar';
 import { useAuth } from '../../contexts/AuthContext';
 import { profileService } from '../../services/profile.service';
 import { AthleteProfile } from '../../types/database.types';
@@ -14,14 +13,6 @@ export default function ProfileScreen() {
   const [athleteProfile, setAthleteProfile] = useState<AthleteProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Mock active workout data - in real app, get from context
-  const isWorkoutActive = false;
-  const activeWorkout = {
-    name: 'Upper Body A',
-    startTime: Date.now() - 600000,
-    exercises: [{ id: '1' }, { id: '2' }]
-  };
 
   useEffect(() => {
     loadAthleteProfile();
@@ -324,22 +315,6 @@ export default function ProfileScreen() {
           </YStack>
         </ScrollView>
 
-        {/* Active Workout Bar */}
-        {isWorkoutActive && (
-          <YStack 
-            position="absolute" 
-            bottom={Platform.OS === 'ios' ? 88 : 60} 
-            left={0} 
-            right={0}
-            pointerEvents="box-none"
-          >
-            <ActiveWorkoutBar
-              workoutName={activeWorkout.name}
-              startTime={activeWorkout.startTime}
-              exerciseCount={activeWorkout.exercises.length}
-            />
-          </YStack>
-        )}
       </YStack>
     </SafeAreaView>
   );
