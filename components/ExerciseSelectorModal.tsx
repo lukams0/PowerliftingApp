@@ -8,7 +8,7 @@ const CATEGORIES = ['All', 'Legs', 'Chest', 'Back', 'Shoulders', 'Arms', 'Core',
 
 interface ExerciseSelectorModalProps {
   exercises: Exercise[];
-  onSelect: (exerciseId: string) => void;
+  onSelect: (exercise: Exercise) => void;
   onClose: () => void;
   disabled?: boolean;
 }
@@ -116,9 +116,10 @@ export function ExerciseSelectorModal({
           </XStack>
 
           {/* Category Filter */}
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingVertical: 4 }}
           >
             <XStack gap="$2">
@@ -142,64 +143,70 @@ export function ExerciseSelectorModal({
             </XStack>
           </ScrollView>
 
-          {/* Results Count */}
-          <Text fontSize="$2" color="$gray10">
-            {filteredExercises.length} {filteredExercises.length === 1 ? 'exercise' : 'exercises'}
-          </Text>
+          <YStack gap="$2" f={1}>
+            {/* Results Count */}
+            <Text fontSize="$2" color="$gray10">
+              {filteredExercises.length} {filteredExercises.length === 1 ? 'exercise' : 'exercises'}
+            </Text>
 
-          {/* Exercise List */}
-          <ScrollView style={{ flex: 1 }}>
-            <YStack gap="$2" pb="$4">
-              {filteredExercises.length === 0 ? (
-                <YStack ai="center" py="$8" gap="$2">
-                  <Text fontSize="$4" color="$gray10" textAlign="center">
-                    No exercises found
-                  </Text>
-                  <Text fontSize="$3" color="$gray9" textAlign="center">
-                    Try adjusting your search or filter
-                  </Text>
-                </YStack>
-              ) : (
-                filteredExercises.map((exercise) => (
-                  <TouchableOpacity
-                    key={exercise.id}
-                    onPress={() => onSelect(exercise.id)}
-                    disabled={disabled}
-                  >
-                    <YStack
-                      backgroundColor="white"
-                      borderWidth={1}
-                      borderColor="#e5e7eb"
-                      borderRadius="$3"
-                      p="$3"
-                      gap="$2"
-                      pressStyle={{ backgroundColor: '#f9fafb' }}
+            {/* Exercise List */}
+            <ScrollView
+              style={{ flex: 1 }}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 16 }}
+            >
+              <YStack gap="$2">
+                {filteredExercises.length === 0 ? (
+                  <YStack ai="center" py="$8" gap="$2">
+                    <Text fontSize="$4" color="$gray10" textAlign="center">
+                      No exercises found
+                    </Text>
+                    <Text fontSize="$3" color="$gray9" textAlign="center">
+                      Try adjusting your search or filter
+                    </Text>
+                  </YStack>
+                ) : (
+                  filteredExercises.map((exercise) => (
+                    <TouchableOpacity
+                      key={exercise.id}
+                      onPress={() => onSelect(exercise)}
+                      disabled={disabled}
                     >
-                      <Text fontSize="$4" fontWeight="600" color="$gray12">
-                        {exercise.name}
-                      </Text>
-                      <Text 
-                        fontSize="$2" 
-                        color="$gray10" 
-                        textTransform="capitalize"
+                      <YStack
+                        backgroundColor="white"
+                        borderWidth={1}
+                        borderColor="#e5e7eb"
+                        borderRadius="$3"
+                        p="$3"
+                        gap="$2"
+                        pressStyle={{ backgroundColor: '#f9fafb' }}
                       >
-                        {exercise.category.replace('_', ' ')}
-                      </Text>
-                      {exercise.description && (
-                        <Text 
-                          fontSize="$2" 
-                          color="$gray9" 
-                          numberOfLines={2}
-                        >
-                          {exercise.description}
+                        <Text fontSize="$4" fontWeight="600" color="$gray12">
+                          {exercise.name}
                         </Text>
-                      )}
-                    </YStack>
-                  </TouchableOpacity>
-                ))
-              )}
-            </YStack>
-          </ScrollView>
+                        <Text
+                          fontSize="$2"
+                          color="$gray10"
+                          textTransform="capitalize"
+                        >
+                          {exercise.category.replace('_', ' ')}
+                        </Text>
+                        {exercise.description && (
+                          <Text
+                            fontSize="$2"
+                            color="$gray9"
+                            numberOfLines={2}
+                          >
+                            {exercise.description}
+                          </Text>
+                        )}
+                      </YStack>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </YStack>
+            </ScrollView>
+          </YStack>
         </YStack>
       </Card>
     </YStack>
