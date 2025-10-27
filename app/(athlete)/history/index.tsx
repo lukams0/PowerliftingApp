@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
 import { Calendar, Clock, TrendingUp } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Platform, RefreshControl, ScrollView } from 'react-native';
+import { RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Spinner, Text, XStack, YStack } from 'tamagui';
-import { ActiveWorkoutBar } from '../../../components/ActiveWorkoutBar';
 import { useAuth } from '../../../contexts/AuthContext';
 import { WorkoutSession, workoutSessionService } from '../../../services/workoutsession.service';
 
@@ -13,14 +12,6 @@ export default function HistoryScreen() {
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Mock active workout data - replace with actual context
-  const isWorkoutActive = false;
-  const activeWorkout = {
-    name: 'Upper Body A',
-    startTime: Date.now() - 600000,
-    exercises: [{ id: '1' }, { id: '2' }]
-  };
 
   useEffect(() => {
     loadSessions();
@@ -83,6 +74,17 @@ export default function HistoryScreen() {
     return `${mins} min`;
   };
 
+  // Calculate stats
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const thisWeekSessions = sessions.filter(s => {
+    const date = new Date(s.start_time);
+    return date >= weekAgo;
+  });
+  const totalVolume = Math.round(
+    sessions.reduce((sum, s) => sum + (s.total_volume_lbs || 0), 0) / 1000
+  );
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
       <YStack f={1} backgroundColor="#f5f5f5">
@@ -109,26 +111,25 @@ export default function HistoryScreen() {
                   <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
                     {sessions.length}
                   </Text>
-                  <Text fontSize="$2" color="$gray10">Workouts</Text>
+                  <Text fontSize="$2" color="$gray10">
+                    Workouts
+                  </Text>
                 </YStack>
                 <YStack ai="center" gap="$1">
                   <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
-                    {sessions.filter(s => {
-                      const date = new Date(s.start_time);
-                      const weekAgo = new Date();
-                      weekAgo.setDate(weekAgo.getDate() - 7);
-                      return date >= weekAgo;
-                    }).length}
+                    {thisWeekSessions.length}
                   </Text>
-                  <Text fontSize="$2" color="$gray10">This Week</Text>
+                  <Text fontSize="$2" color="$gray10">
+                    This Week
+                  </Text>
                 </YStack>
                 <YStack ai="center" gap="$1">
                   <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
-                    {Math.round(
-                      sessions.reduce((sum, s) => sum + (s.total_volume_lbs || 0), 0) / 1000
-                    )}k
+                    {totalVolume}k
                   </Text>
-                  <Text fontSize="$2" color="$gray10">Total lbs</Text>
+                  <Text fontSize="$2" color="$gray10">
+                    Total lbs
+                  </Text>
                 </YStack>
               </XStack>
             </Card>
@@ -204,7 +205,7 @@ export default function HistoryScreen() {
                             {formatDuration(session.duration_minutes)}
                           </Text>
                         </XStack>
-                        {session.total_volume_lbs && (
+                        {session.total_volume_lbs && session.total_volume_lbs > 0 && (
                           <XStack ai="center" gap="$2">
                             <TrendingUp size={16} color="#6b7280" />
                             <Text fontSize="$3" color="$gray10">
@@ -226,23 +227,6 @@ export default function HistoryScreen() {
             )}
           </YStack>
         </ScrollView>
-
-        {/* Active Workout Bar */}
-        {isWorkoutActive && (
-          <YStack 
-            position="absolute" 
-            bottom={Platform.OS === 'ios' ? 88 : 60} 
-            left={0} 
-            right={0}
-            pointerEvents="box-none"
-          >
-            <ActiveWorkoutBar
-              workoutName={activeWorkout.name}
-              startTime={activeWorkout.startTime}
-              exerciseCount={activeWorkout.exercises.length}
-            />
-          </YStack>
-        )}
       </YStack>
     </SafeAreaView>
   );

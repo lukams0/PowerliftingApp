@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Spinner, Text, XStack, YStack } from 'tamagui';
+import { ExerciseSelectorModal } from '../../components/ExerciseSelectorModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWorkout } from '../../contexts/WorkoutContext';
 import { exerciseService } from '../../services/exercise.service';
@@ -96,6 +97,8 @@ export default function ActiveWorkoutModal() {
     try {
       setSaving(true);
       const order = exercises.length;
+      
+      // Add exercise to session
       const sessionExercise = await workoutSessionService.addExerciseToSession(
         sessionId,
         exerciseId,
@@ -103,14 +106,26 @@ export default function ActiveWorkoutModal() {
       );
 
       const exercise = availableExercises.find(e => e.id === exerciseId);
-      if (exercise) {
-        const newExercise: LocalExercise = {
-          ...sessionExercise,
-          exercise,
-          sets: []
-        };
-        setExercises(prev => [...prev, newExercise]);
-      }
+      if (!exercise) return;
+
+      // Automatically add an empty set
+      const firstSet = await workoutSessionService.addSetToExercise(
+        sessionExercise.id,
+        {
+          set_number: 1,
+          weight_lbs: 0,
+          reps: 0,
+          rpe: null
+        }
+      );
+
+      const newExercise: LocalExercise = {
+        ...sessionExercise,
+        exercise,
+        sets: [firstSet]
+      };
+      
+      setExercises(prev => [...prev, newExercise]);
       setShowExercisePicker(false);
     } catch (error) {
       console.error('Error adding exercise:', error);
@@ -199,7 +214,7 @@ export default function ActiveWorkoutModal() {
   const handleDeleteExercise = async (sessionExerciseId: string) => {
     Alert.alert(
       'Delete Exercise',
-      'Delete this exercise and all its sets?',
+      'Are you sure you want to delete this exercise and all its sets?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -207,11 +222,14 @@ export default function ActiveWorkoutModal() {
           style: 'destructive',
           onPress: async () => {
             try {
+              setSaving(true);
               await workoutSessionService.removeExerciseFromSession(sessionExerciseId);
               setExercises(prev => prev.filter(ex => ex.id !== sessionExerciseId));
             } catch (error) {
               console.error('Error deleting exercise:', error);
               Alert.alert('Error', 'Failed to delete exercise');
+            } finally {
+              setSaving(false);
             }
           }
         }
@@ -227,10 +245,10 @@ export default function ActiveWorkoutModal() {
     if (!hasCompletedSets) {
       Alert.alert(
         'No Sets Completed',
-        'You haven\'t completed any sets. Finish anyway?',
+        'You haven\'t completed any sets. Are you sure you want to finish this workout?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Finish', onPress: () => completeWorkout() }
+          { text: 'Finish Anyway', onPress: () => completeWorkout() }
         ]
       );
       return;
@@ -245,7 +263,7 @@ export default function ActiveWorkoutModal() {
     try {
       setSaving(true);
       await workoutSessionService.completeSession(sessionId, notes);
-      endWorkout();
+      await endWorkout();
       
       Alert.alert(
         'Workout Complete!',
@@ -253,32 +271,50 @@ export default function ActiveWorkoutModal() {
         [
           {
             text: 'View History',
-            onPress: () => {
-              router.dismiss();
-              router.push('/(athlete)/history');
-            }
+            onPress: () => router.replace('/(athlete)/history')
           },
           {
-            text: 'Done',
-            onPress: () => router.dismiss()
+            text: 'Go Home',
+            onPress: () => router.replace('/(athlete)')
           }
         ]
       );
     } catch (error) {
       console.error('Error completing workout:', error);
-      Alert.alert('Error', 'Failed to save workout');
+      Alert.alert('Error', 'Failed to save workout. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleMinimize = () => {
-    router.dismiss();
+  const handleCancel = () => {
+    Alert.alert(
+      'Cancel Workout',
+      'Are you sure you want to cancel this workout? All progress will be lost.',
+      [
+        { text: 'Keep Working Out', style: 'cancel' },
+        {
+          text: 'Cancel Workout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (sessionId) {
+                await workoutSessionService.deleteSession(sessionId);
+                await endWorkout();
+              }
+              router.replace('/(athlete)');
+            } catch (error) {
+              console.error('Error canceling workout:', error);
+            }
+          }
+        }
+      ]
+    );
   };
 
-  if (loading || !session) {
+  if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
         <YStack f={1} ai="center" jc="center">
           <Spinner size="large" color="#7c3aed" />
           <Text fontSize="$3" color="$gray10" mt="$3">
@@ -290,203 +326,161 @@ export default function ActiveWorkoutModal() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        <YStack f={1} backgroundColor="#fff">
+        <YStack f={1} backgroundColor="#f5f5f5">
           {/* Header */}
-          <XStack
-            backgroundColor="#7c3aed"
-            p="$4"
-            ai="center"
-            jc="space-between"
-          >
-            <YStack f={1}>
-              <Text fontSize="$6" fontWeight="bold" color="white">
-                {session.name}
+          <XStack backgroundColor="white" p="$4" ai="center" jc="space-between" borderBottomWidth={1} borderBottomColor="#e5e7eb">
+            <Button
+              size="$3"
+              chromeless
+              onPress={handleCancel}
+              disabled={saving}
+            >
+              <X size={24} color="#6b7280" />
+            </Button>
+            
+            <YStack ai="center" gap="$1">
+              <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                {session?.name || 'Workout'}
               </Text>
               <XStack ai="center" gap="$2">
-                <Clock size={16} color="white" />
-                <Text fontSize="$4" color="white" fontWeight="600">
+                <Clock size={16} color="#7c3aed" />
+                <Text fontSize="$3" fontWeight="600" color="#7c3aed">
                   {formatTime(elapsedTime)}
                 </Text>
               </XStack>
             </YStack>
-            <TouchableOpacity onPress={handleMinimize}>
-              <ChevronDown size={28} color="white" />
-            </TouchableOpacity>
+
+            <Button
+              size="$3"
+              backgroundColor="#16a34a"
+              color="white"
+              onPress={handleFinishWorkout}
+              disabled={saving}
+              pressStyle={{ backgroundColor: '#15803d' }}
+            >
+              {saving ? <Spinner size="small" color="white" /> : <Save size={20} color="white" />}
+            </Button>
           </XStack>
 
-          <ScrollView style={{ flex: 1 }}>
-            <YStack p="$4" gap="$4" pb={120}>
+          <ScrollView>
+            <YStack p="$4" gap="$3" pb="$24">
               {/* Exercises */}
-              {exercises.map((exercise, exerciseIndex) => (
-                <Card key={exercise.id} elevate size="$4" p="$3" backgroundColor="white">
+              {exercises.map((exercise) => (
+                <Card key={exercise.id} elevate size="$4" p="$4" backgroundColor="white">
                   <YStack gap="$3">
-                    {/* Exercise Header */}
                     <XStack ai="center" jc="space-between">
-                      <YStack f={1}>
-                        <Text fontSize="$2" color="$gray10">
-                          Exercise {exerciseIndex + 1}
-                        </Text>
+                      <YStack f={1} gap="$1">
                         <Text fontSize="$5" fontWeight="bold" color="$gray12">
                           {exercise.exercise.name}
                         </Text>
+                        <Text fontSize="$2" color="$gray10" textTransform="capitalize">
+                          {exercise.exercise.category.replace('_', ' ')}
+                        </Text>
                       </YStack>
-                      <TouchableOpacity onPress={() => handleDeleteExercise(exercise.id)}>
-                        <Trash2 size={20} color="#ef4444" />
-                      </TouchableOpacity>
+                      <Button
+                        size="$2"
+                        chromeless
+                        icon={Trash2}
+                        color="#ef4444"
+                        onPress={() => handleDeleteExercise(exercise.id)}
+                        disabled={saving}
+                      />
                     </XStack>
 
-                    {/* Set Headers */}
-                    {exercise.sets.length > 0 && (
-                      <XStack gap="$2" ai="center" px="$2">
-                        <Text w={30} fontSize="$2" color="$gray10" fontWeight="600">
-                          Set
-                        </Text>
-                        <Text f={1} fontSize="$2" color="$gray10" fontWeight="600" textAlign="center">
-                          Lbs
-                        </Text>
-                        <Text f={1} fontSize="$2" color="$gray10" fontWeight="600" textAlign="center">
-                          Reps
-                        </Text>
-                        <Text f={1} fontSize="$2" color="$gray10" fontWeight="600" textAlign="center">
-                          RPE
-                        </Text>
-                        <YStack w={40} />
-                      </XStack>
-                    )}
-
                     {/* Sets */}
-                    {exercise.sets.map((set, setIndex) => (
-                      <XStack key={set.id} gap="$2" ai="center">
-                        {/* Set Number */}
-                        <YStack
-                          w={30}
-                          h={40}
-                          borderRadius="$2"
-                          backgroundColor={set.completed ? '#7c3aed' : '#f3f4f6'}
-                          ai="center"
-                          jc="center"
-                        >
-                          <Text
-                            fontSize="$3"
-                            fontWeight="bold"
-                            color={set.completed ? 'white' : '$gray11'}
-                          >
-                            {setIndex + 1}
+                    <YStack gap="$2">
+                      {exercise.sets.map((set) => (
+                        <XStack key={set.id} ai="center" gap="$3" backgroundColor="#f9fafb" borderRadius="$2" p="$2">
+                          <Text fontSize="$3" color="$gray10" minWidth={60}>
+                            Set {set.set_number}
                           </Text>
-                        </YStack>
-
-                        {/* Weight */}
-                        <YStack f={1}>
                           <TextInput
                             style={{
-                              backgroundColor: set.completed ? '#f0fdf4' : '#fff',
+                              flex: 1,
+                              backgroundColor: 'white',
                               borderWidth: 1,
-                              borderColor: set.completed ? '#86efac' : '#e5e7eb',
-                              borderRadius: 8,
-                              paddingVertical: 10,
-                              paddingHorizontal: 12,
-                              fontSize: 16,
+                              borderColor: '#e5e7eb',
+                              borderRadius: 6,
+                              paddingVertical: 6,
+                              paddingHorizontal: 10,
+                              fontSize: 14,
                               textAlign: 'center',
                             }}
-                            placeholder="0"
+                            placeholder="lbs"
+                            keyboardType="numeric"
                             value={set.weight_lbs > 0 ? set.weight_lbs.toString() : ''}
-                            onChangeText={(val) => {
-                              const weight = parseFloat(val) || 0;
+                            onChangeText={(text) => {
+                              const weight = parseInt(text) || 0;
                               handleUpdateSet(set.id, exercise.id, { weight_lbs: weight });
                             }}
-                            keyboardType="decimal-pad"
-                            editable={!set.completed}
+                            editable={!saving}
                           />
-                        </YStack>
-
-                        {/* Reps */}
-                        <YStack f={1}>
+                          <Text fontSize="$3" color="$gray10">×</Text>
                           <TextInput
                             style={{
-                              backgroundColor: set.completed ? '#f0fdf4' : '#fff',
+                              flex: 1,
+                              backgroundColor: 'white',
                               borderWidth: 1,
-                              borderColor: set.completed ? '#86efac' : '#e5e7eb',
-                              borderRadius: 8,
-                              paddingVertical: 10,
-                              paddingHorizontal: 12,
-                              fontSize: 16,
+                              borderColor: '#e5e7eb',
+                              borderRadius: 6,
+                              paddingVertical: 6,
+                              paddingHorizontal: 10,
+                              fontSize: 14,
                               textAlign: 'center',
                             }}
-                            placeholder="0"
+                            placeholder="reps"
+                            keyboardType="numeric"
                             value={set.reps > 0 ? set.reps.toString() : ''}
-                            onChangeText={(val) => {
-                              const reps = parseInt(val) || 0;
+                            onChangeText={(text) => {
+                              const reps = parseInt(text) || 0;
                               handleUpdateSet(set.id, exercise.id, { reps });
                             }}
-                            keyboardType="number-pad"
-                            editable={!set.completed}
+                            editable={!saving}
                           />
-                        </YStack>
+                          <YStack minWidth={40} ai="center">
+                            {set.completed ? (
+                              <TouchableOpacity
+                                onPress={() => handleUpdateSet(set.id, exercise.id, { completed: false })}
+                                disabled={saving}
+                              >
+                                <Check size={24} color="#16a34a" />
+                              </TouchableOpacity>
+                            ) : set.weight_lbs > 0 && set.reps > 0 ? (
+                              <TouchableOpacity
+                                onPress={() => handleUpdateSet(set.id, exercise.id, { completed: true })}
+                                disabled={saving}
+                              >
+                                <ChevronDown size={24} color="#7c3aed" />
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity 
+                                onPress={() => handleDeleteSet(set.id, exercise.id)}
+                                disabled={saving}
+                              >
+                                <Trash2 size={20} color="#ef4444" />
+                              </TouchableOpacity>
+                            )}
+                          </YStack>
+                        </XStack>
+                      ))}
 
-                        {/* RPE */}
-                        <YStack f={1}>
-                          <TextInput
-                            style={{
-                              backgroundColor: set.completed ? '#f0fdf4' : '#fff',
-                              borderWidth: 1,
-                              borderColor: set.completed ? '#86efac' : '#e5e7eb',
-                              borderRadius: 8,
-                              paddingVertical: 10,
-                              paddingHorizontal: 12,
-                              fontSize: 16,
-                              textAlign: 'center',
-                            }}
-                            placeholder="0"
-                            value={set.rpe ? set.rpe.toString() : ''}
-                            onChangeText={(val) => {
-                              const rpe = parseFloat(val) || null;
-                              handleUpdateSet(set.id, exercise.id, { rpe });
-                            }}
-                            keyboardType="decimal-pad"
-                            editable={!set.completed}
-                          />
-                        </YStack>
-
-                        {/* Actions */}
-                        <YStack w={40}>
-                          {set.completed ? (
-                            <TouchableOpacity
-                              onPress={() => handleUpdateSet(set.id, exercise.id, { completed: false })}
-                            >
-                              <X size={24} color="#6b7280" />
-                            </TouchableOpacity>
-                          ) : set.weight_lbs > 0 && set.reps > 0 ? (
-                            <TouchableOpacity
-                              onPress={() => handleUpdateSet(set.id, exercise.id, { completed: true })}
-                            >
-                              <Check size={24} color="#16a34a" />
-                            </TouchableOpacity>
-                          ) : (
-                            <TouchableOpacity onPress={() => handleDeleteSet(set.id, exercise.id)}>
-                              <Trash2 size={20} color="#ef4444" />
-                            </TouchableOpacity>
-                          )}
-                        </YStack>
-                      </XStack>
-                    ))}
-
-                    {/* Add Set Button */}
-                    <Button
-                      size="$3"
-                      backgroundColor="#f3f4f6"
-                      color="$gray12"
-                      icon={Plus}
-                      onPress={() => handleAddSet(exercise.id)}
-                      disabled={saving}
-                    >
-                      Add Set
-                    </Button>
+                      {/* Add Set Button */}
+                      <Button
+                        size="$3"
+                        backgroundColor="#f3f4f6"
+                        color="$gray12"
+                        icon={Plus}
+                        onPress={() => handleAddSet(exercise.id)}
+                        disabled={saving}
+                      >
+                        <Text>Add Set</Text>
+                      </Button>
+                    </YStack>
                   </YStack>
                 </Card>
               ))}
@@ -503,7 +497,7 @@ export default function ActiveWorkoutModal() {
                 onPress={() => setShowExercisePicker(true)}
                 disabled={saving}
               >
-                Add Exercise
+                <Text>Add Exercise</Text>
               </Button>
 
               {/* Notes */}
@@ -524,96 +518,27 @@ export default function ActiveWorkoutModal() {
                       minHeight: 80,
                       textAlignVertical: 'top',
                     }}
-                    placeholder="How did you feel?"
+                    placeholder="How did you feel? Any achievements?"
                     value={notes}
                     onChangeText={setNotes}
                     multiline
                     numberOfLines={3}
+                    editable={!saving}
                   />
                 </YStack>
               </Card>
             </YStack>
           </ScrollView>
 
-          {/* Exercise Picker Modal */}
+          {/* Exercise Selector Modal */}
           {showExercisePicker && (
-            <YStack
-              position="absolute"
-              top={0}
-              left={0}
-              right={0}
-              bottom={0}
-              backgroundColor="rgba(0,0,0,0.5)"
-              ai="center"
-              jc="center"
-              p="$4"
-            >
-              <YStack
-                backgroundColor="white"
-                borderRadius="$4"
-                p="$4"
-                maxHeight="80%"
-                w="100%"
-                maxWidth={400}
-                gap="$3"
-              >
-                <XStack ai="center" jc="space-between">
-                  <Text fontSize="$5" fontWeight="bold">Select Exercise</Text>
-                  <TouchableOpacity onPress={() => setShowExercisePicker(false)}>
-                    <X size={24} color="#6b7280" />
-                  </TouchableOpacity>
-                </XStack>
-                
-                <ScrollView>
-                  <YStack gap="$2">
-                    {availableExercises.map((ex) => (
-                      <TouchableOpacity
-                        key={ex.id}
-                        onPress={() => handleAddExercise(ex.id)}
-                        disabled={saving}
-                      >
-                        <YStack
-                          backgroundColor="white"
-                          borderWidth={1}
-                          borderColor="#e5e7eb"
-                          borderRadius="$3"
-                          p="$3"
-                          gap="$1"
-                        >
-                          <Text fontSize="$4" fontWeight="600">{ex.name}</Text>
-                          <Text fontSize="$2" color="$gray10">{ex.category}</Text>
-                        </YStack>
-                      </TouchableOpacity>
-                    ))}
-                  </YStack>
-                </ScrollView>
-              </YStack>
-            </YStack>
-          )}
-
-          {/* Finish Button */}
-          <YStack
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            p="$4"
-            backgroundColor="white"
-            borderTopWidth={1}
-            borderTopColor="#e5e7eb"
-          >
-            <Button
-              size="$5"
-              backgroundColor="#16a34a"
-              color="white"
-              icon={Save}
-              onPress={handleFinishWorkout}
+            <ExerciseSelectorModal
+              exercises={availableExercises}
+              onSelect={handleAddExercise}
+              onClose={() => setShowExercisePicker(false)}
               disabled={saving}
-              pressStyle={{ backgroundColor: '#15803d' }}
-            >
-              {saving ? 'Saving...' : 'Finish Workout'}
-            </Button>
-          </YStack>
+            />
+          )}
         </YStack>
       </KeyboardAvoidingView>
     </SafeAreaView>

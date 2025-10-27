@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
-import { ChevronUp, Clock, Dumbbell } from 'lucide-react-native';
+import { Clock, Dumbbell } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Card, Text, XStack, YStack } from 'tamagui';
+import { TouchableOpacity } from 'react-native';
+import { Text, XStack, YStack } from 'tamagui';
 
-type ActiveWorkoutBarProps = {
+interface ActiveWorkoutBarProps {
   workoutName: string;
-  startTime: number;
+  startTime: number | string; // Unix timestamp in ms or ISO string
   exerciseCount: number;
   onPress?: () => void;
-};
+}
 
 export function ActiveWorkoutBar({ 
   workoutName, 
@@ -16,27 +17,25 @@ export function ActiveWorkoutBar({
   exerciseCount,
   onPress 
 }: ActiveWorkoutBarProps) {
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState('00:00');
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      setElapsedTime(elapsed);
-    }, 1000);
+    const startMs = typeof startTime === 'number' 
+      ? startTime 
+      : new Date(startTime).getTime();
 
+    const updateTimer = () => {
+      const now = Date.now();
+      const elapsed = Math.floor((now - startMs) / 1000);
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+      setElapsedTime(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [startTime]);
-
-  const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handlePress = () => {
     if (onPress) {
@@ -47,53 +46,52 @@ export function ActiveWorkoutBar({
   };
 
   return (
-    <Card
-      elevate
-      backgroundColor="#7c3aed"
-      p="$3"
-      mx="$3"
-      mb="$2"
-      borderRadius="$4"
-      pressStyle={{ opacity: 0.9, scale: 0.98 }}
+    <TouchableOpacity 
       onPress={handlePress}
-      animation="quick"
+      activeOpacity={0.8}
+      style={{
+        width: '100%',
+        backgroundColor: '#7c3aed',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 8,
+      }}
     >
       <XStack ai="center" jc="space-between">
-        <YStack f={1} gap="$1">
-          <Text fontSize="$4" fontWeight="bold" color="white">
+        <YStack gap="$1" f={1}>
+          <Text fontSize="$3" fontWeight="600" color="white">
             {workoutName}
           </Text>
           <XStack ai="center" gap="$3">
             <XStack ai="center" gap="$1">
-              <Clock size={14} color="white" />
+              <Clock size={14} color="rgba(255,255,255,0.9)" />
               <Text fontSize="$2" color="rgba(255,255,255,0.9)">
-                {formatTime(elapsedTime)}
+                {elapsedTime}
               </Text>
             </XStack>
-            {exerciseCount > 0 && (
-              <XStack ai="center" gap="$1">
-                <Dumbbell size={14} color="white" />
-                <Text fontSize="$2" color="rgba(255,255,255,0.9)">
-                  {exerciseCount} exercises
-                </Text>
-              </XStack>
-            )}
+            <XStack ai="center" gap="$1">
+              <Dumbbell size={14} color="rgba(255,255,255,0.9)" />
+              <Text fontSize="$2" color="rgba(255,255,255,0.9)">
+                {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
+              </Text>
+            </XStack>
           </XStack>
         </YStack>
-        <XStack
+        <YStack 
           backgroundColor="rgba(255,255,255,0.2)"
           px="$3"
           py="$2"
-          borderRadius="$3"
-          ai="center"
-          gap="$1"
+          borderRadius="$2"
         >
-          <Text fontSize="$3" fontWeight="600" color="white">
-            Resume
+          <Text fontSize="$2" fontWeight="600" color="white">
+            RESUME
           </Text>
-          <ChevronUp size={16} color="white" />
-        </XStack>
+        </YStack>
       </XStack>
-    </Card>
+    </TouchableOpacity>
   );
 }
