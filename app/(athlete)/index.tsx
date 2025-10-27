@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { Calendar, Dumbbell, Play } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Platform, RefreshControl, ScrollView } from 'react-native';
+import { RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Spinner, Text, XStack, YStack } from 'tamagui';
-import { ActiveWorkoutBar } from '../../components/ActiveWorkoutBar';
+import { ActiveWorkoutFooter } from '../../components/ActiveWorkoutFooter';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWorkout } from '../../contexts/WorkoutContext';
 import { programService } from '../../services/program.service';
@@ -13,7 +13,7 @@ import { Workout } from '../../types/database.types';
 
 export default function AthleteHomeScreen() {
   const { user } = useAuth();
-  const { isWorkoutActive, activeSession, startTime, startWorkout, loadActiveWorkout } = useWorkout();
+  const { startWorkout, loadActiveWorkout } = useWorkout();
   const [activeProgram, setActiveProgram] = useState<any>(null);
   const [todayWorkouts, setTodayWorkouts] = useState<Workout[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -108,11 +108,6 @@ export default function AthleteHomeScreen() {
     } catch (error) {
       console.error('Error starting workout:', error);
     }
-  };
-
-  const handleResumeWorkout = () => {
-    // Just open the modal - context already has the active session
-    router.push('/workout');
   };
 
   if (loading) {
@@ -281,22 +276,7 @@ export default function AthleteHomeScreen() {
         </ScrollView>
 
         {/* Active Workout Bar */}
-        {isWorkoutActive && activeSession && startTime && (
-          <YStack 
-            position="absolute" 
-            bottom={Platform.OS === 'ios' ? 88 : 60} 
-            left={0} 
-            right={0}
-            pointerEvents="box-none"
-          >
-            <ActiveWorkoutBar
-              workoutName={activeSession.name}
-              startTime={startTime}
-              exerciseCount={0}
-              onPress={handleResumeWorkout}
-            />
-          </YStack>
-        )}
+        <ActiveWorkoutFooter />
       </YStack>
     </SafeAreaView>
   );
