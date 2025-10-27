@@ -547,6 +547,7 @@ export default function ActiveWorkoutModal() {
               ai="center"
               jc="center"
               p="$4"
+              zIndex={20}
             >
               <YStack
                 backgroundColor="white"
@@ -601,6 +602,8 @@ export default function ActiveWorkoutModal() {
             backgroundColor="white"
             borderTopWidth={1}
             borderTopColor="#e5e7eb"
+            pointerEvents={showExercisePicker ? 'none' : 'auto'}
+            zIndex={10}
           >
             <Button
               size="$5"

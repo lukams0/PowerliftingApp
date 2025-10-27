@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { Calendar, Clock, TrendingUp } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Platform, RefreshControl, ScrollView } from 'react-native';
+import { RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Spinner, Text, XStack, YStack } from 'tamagui';
-import { ActiveWorkoutBar } from '../../../components/ActiveWorkoutBar';
+import { ActiveWorkoutFooter } from '../../../components/ActiveWorkoutFooter';
 import { useAuth } from '../../../contexts/AuthContext';
 import { WorkoutSession, workoutSessionService } from '../../../services/workoutsession.service';
 
@@ -13,14 +13,6 @@ export default function HistoryScreen() {
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Mock active workout data - replace with actual context
-  const isWorkoutActive = false;
-  const activeWorkout = {
-    name: 'Upper Body A',
-    startTime: Date.now() - 600000,
-    exercises: [{ id: '1' }, { id: '2' }]
-  };
 
   useEffect(() => {
     loadSessions();
@@ -204,7 +196,7 @@ export default function HistoryScreen() {
                             {formatDuration(session.duration_minutes)}
                           </Text>
                         </XStack>
-                        {session.total_volume_lbs && (
+                        {session.total_volume_lbs != null && (
                           <XStack ai="center" gap="$2">
                             <TrendingUp size={16} color="#6b7280" />
                             <Text fontSize="$3" color="$gray10">
@@ -228,21 +220,7 @@ export default function HistoryScreen() {
         </ScrollView>
 
         {/* Active Workout Bar */}
-        {isWorkoutActive && (
-          <YStack 
-            position="absolute" 
-            bottom={Platform.OS === 'ios' ? 88 : 60} 
-            left={0} 
-            right={0}
-            pointerEvents="box-none"
-          >
-            <ActiveWorkoutBar
-              workoutName={activeWorkout.name}
-              startTime={activeWorkout.startTime}
-              exerciseCount={activeWorkout.exercises.length}
-            />
-          </YStack>
-        )}
+        <ActiveWorkoutFooter />
       </YStack>
     </SafeAreaView>
   );
