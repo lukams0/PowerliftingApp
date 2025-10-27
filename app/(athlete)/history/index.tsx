@@ -96,10 +96,10 @@ export default function HistoryScreen() {
           <YStack p="$4" gap="$4">
             {/* Header */}
             <YStack gap="$2">
-              <Text fontSize="$8" fontWeight="bold" color="$gray12">
+              <Text fontSize="$8" fontWeight="bold" color="#111827">
                 History
               </Text>
-              <Text fontSize="$4" color="$gray10">
+              <Text fontSize="$4" color="#6b7280">
                 Your workout history
               </Text>
             </YStack>
@@ -111,7 +111,7 @@ export default function HistoryScreen() {
                   <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
                     {sessions.length}
                   </Text>
-                  <Text fontSize="$2" color="$gray10">
+                  <Text fontSize="$2" color="#6b7280">
                     Workouts
                   </Text>
                 </YStack>
@@ -119,7 +119,7 @@ export default function HistoryScreen() {
                   <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
                     {thisWeekSessions.length}
                   </Text>
-                  <Text fontSize="$2" color="$gray10">
+                  <Text fontSize="$2" color="#6b7280">
                     This Week
                   </Text>
                 </YStack>
@@ -127,7 +127,7 @@ export default function HistoryScreen() {
                   <Text fontSize="$7" fontWeight="bold" color="#7c3aed">
                     {totalVolume}k
                   </Text>
-                  <Text fontSize="$2" color="$gray10">
+                  <Text fontSize="$2" color="#6b7280">
                     Total lbs
                   </Text>
                 </YStack>
@@ -138,7 +138,7 @@ export default function HistoryScreen() {
             {loading && (
               <YStack ai="center" py="$8">
                 <Spinner size="large" color="#7c3aed" />
-                <Text fontSize="$3" color="$gray10" mt="$3">
+                <Text fontSize="$3" color="#6b7280" mt="$3">
                   Loading your workouts...
                 </Text>
               </YStack>
@@ -150,10 +150,10 @@ export default function HistoryScreen() {
                 <YStack ai="center" gap="$3">
                   <Calendar size={48} color="#d1d5db" />
                   <YStack ai="center" gap="$2">
-                    <Text fontSize="$5" fontWeight="bold" color="$gray12" textAlign="center">
+                    <Text fontSize="$5" fontWeight="bold" color="#111827" textAlign="center">
                       No Workouts Yet
                     </Text>
-                    <Text fontSize="$3" color="$gray10" textAlign="center">
+                    <Text fontSize="$3" color="#6b7280" textAlign="center">
                       Start your first workout from the Home tab to see your history here.
                     </Text>
                   </YStack>
@@ -177,10 +177,10 @@ export default function HistoryScreen() {
                     <YStack gap="$3">
                       <XStack ai="center" jc="space-between">
                         <YStack gap="$1">
-                          <Text fontSize="$2" color="$gray10">
+                          <Text fontSize="$2" color="#6b7280">
                             {formatDate(session.start_time)}
                           </Text>
-                          <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                          <Text fontSize="$5" fontWeight="bold" color="#111827">
                             {session.name}
                           </Text>
                         </YStack>
@@ -201,14 +201,14 @@ export default function HistoryScreen() {
                       <XStack gap="$4">
                         <XStack ai="center" gap="$2">
                           <Clock size={16} color="#6b7280" />
-                          <Text fontSize="$3" color="$gray10">
+                          <Text fontSize="$3" color="#6b7280">
                             {formatDuration(session.duration_minutes)}
                           </Text>
                         </XStack>
-                        {session.total_volume_lbs && session.total_volume_lbs > 0 && (
+                        {(session.total_volume_lbs ?? 0) > 0 && (
                           <XStack ai="center" gap="$2">
                             <TrendingUp size={16} color="#6b7280" />
-                            <Text fontSize="$3" color="$gray10">
+                            <Text fontSize="$3" color="#6b7280">
                               {session.total_volume_lbs.toLocaleString()} lbs
                             </Text>
                           </XStack>
@@ -216,7 +216,7 @@ export default function HistoryScreen() {
                       </XStack>
 
                       {session.notes && (
-                        <Text fontSize="$3" color="$gray10" numberOfLines={2}>
+                        <Text fontSize="$3" color="#6b7280" numberOfLines={2}>
                           {session.notes}
                         </Text>
                       )}

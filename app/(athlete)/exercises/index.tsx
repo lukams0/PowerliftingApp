@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
 import { Plus, Search, TrendingUp } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Input, Text, XStack, YStack } from 'tamagui';
-import { ActiveWorkoutBar } from '../../../components/ActiveWorkoutBar';
 import { exerciseService } from '../../../services/exercise.service';
 import { Exercise, ExerciseCategory } from '../../../types/database.types';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -66,14 +65,6 @@ export default function ExercisesIndexScreen() {
 
     setFilteredExercises(filtered);
   }, [searchQuery, selectedCategory, exercises]);
-
-  // Mock active workout data - in real app, get from context: const { activeWorkout, isWorkoutActive } = useWorkout();
-  const isWorkoutActive = false;
-  const activeWorkout = {
-    name: 'Upper Body A',
-    startTime: Date.now() - 600000,
-    exercises: [{ id: '1' }, { id: '2' }]
-  };
 
   // Helper function to format category for display
   const formatCategory = (category: ExerciseCategory): string => {
@@ -235,22 +226,6 @@ export default function ExercisesIndexScreen() {
           </YStack>
         </ScrollView>
 
-        {/* Active Workout Bar */}
-        {isWorkoutActive && (
-          <YStack 
-            position="absolute" 
-            bottom={Platform.OS === 'ios' ? 88 : 60} 
-            left={0} 
-            right={0}
-            pointerEvents="box-none"
-          >
-            <ActiveWorkoutBar
-              workoutName={activeWorkout.name}
-              startTime={activeWorkout.startTime}
-              exerciseCount={activeWorkout.exercises.length}
-            />
-          </YStack>
-        )}
       </YStack>
     </SafeAreaView>
   );
