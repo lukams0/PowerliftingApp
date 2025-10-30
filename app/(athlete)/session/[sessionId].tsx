@@ -1,18 +1,19 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, Clock, Plus, Save, Trash2, X } from 'lucide-react-native';
+import { Award, Check, Clock, Plus, Save, Trash2, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Input, Spinner, Text, XStack, YStack } from 'tamagui';
 import { useAuth } from '../../../contexts/AuthContext';
 import { exerciseService } from '../../../services/exercise.service';
+import { personalRecordService } from '../../../services/personalrecord.service';
 import {
     ExerciseSet,
     SessionExercise,
     WorkoutSessionWithDetails,
     workoutSessionService
 } from '../../../services/workoutsession.service';
-import { Exercise } from '../../../types/database.types';
+import { Exercise, PersonalRecord } from '../../../types/database.types';
 
 interface LocalExercise extends SessionExercise {
   exercise: Exercise;
@@ -25,6 +26,7 @@ export default function ActiveSessionScreen() {
   const [session, setSession] = useState<WorkoutSessionWithDetails | null>(null);
   const [exercises, setExercises] = useState<LocalExercise[]>([]);
   const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
+  const [exercisePRs, setExercisePRs] = useState<Map<string, PersonalRecord>>(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -53,7 +55,7 @@ export default function ActiveSessionScreen() {
 
   const loadSession = async () => {
     if (!sessionId) return;
-    
+
     try {
       setLoading(true);
       const data = await workoutSessionService.getSessionDetails(sessionId);
@@ -61,6 +63,18 @@ export default function ActiveSessionScreen() {
         setSession(data);
         setExercises(data.exercises as LocalExercise[]);
         setNotes(data.notes || '');
+
+        // Load PRs for all exercises in the session
+        if (user?.id) {
+          const prMap = new Map<string, PersonalRecord>();
+          for (const exercise of data.exercises) {
+            const pr = await personalRecordService.getExercisePR(user.id, exercise.exercise_id);
+            if (pr) {
+              prMap.set(exercise.exercise_id, pr);
+            }
+          }
+          setExercisePRs(prMap);
+        }
       }
     } catch (error) {
       console.error('Error loading session:', error);
@@ -368,13 +382,30 @@ export default function ActiveSessionScreen() {
                 <YStack gap="$3">
                   {/* Exercise Header */}
                   <XStack ai="center" jc="space-between">
-                    <YStack f={1}>
+                    <YStack f={1} gap="$1">
                       <Text fontSize="$2" color="$gray10">
                         Exercise {exerciseIndex + 1}
                       </Text>
                       <Text fontSize="$5" fontWeight="bold" color="$gray12">
                         {exercise.exercise.name}
                       </Text>
+                      {exercisePRs.get(exercise.exercise_id) && (
+                        <XStack ai="center" gap="$2">
+                          <XStack
+                            backgroundColor="#fef3c7"
+                            px="$2"
+                            py="$1"
+                            borderRadius="$2"
+                            ai="center"
+                            gap="$1"
+                          >
+                            <Award size={12} color="#f59e0b" />
+                            <Text fontSize="$1" fontWeight="600" color="#f59e0b">
+                              PR: {exercisePRs.get(exercise.exercise_id)!.weight_lbs}lbs × {exercisePRs.get(exercise.exercise_id)!.reps}
+                            </Text>
+                          </XStack>
+                        </XStack>
+                      )}
                     </YStack>
                     <Button
                       size="$2"

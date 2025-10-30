@@ -6,11 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Spinner, Text, XStack, YStack } from 'tamagui';
 import { useAuth } from '../../contexts/AuthContext';
 import { profileService } from '../../services/profile.service';
-import { AthleteProfile } from '../../types/database.types';
+import { personalRecordService } from '../../services/personalrecord.service';
+import { AthleteProfile, PersonalRecordWithExercise } from '../../types/database.types';
 
 export default function ProfileScreen() {
   const { user, profile } = useAuth();
   const [athleteProfile, setAthleteProfile] = useState<AthleteProfile | null>(null);
+  const [topPRs, setTopPRs] = useState<PersonalRecordWithExercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -25,6 +27,10 @@ export default function ProfileScreen() {
       setLoading(true);
       const data = await profileService.getAthleteProfile(user.id);
       setAthleteProfile(data);
+
+      // Load top 5 personal records
+      const prs = await personalRecordService.getTopPRs(user.id, 5);
+      setTopPRs(prs);
     } catch (error) {
       console.error('Error loading athlete profile:', error);
     } finally {
@@ -258,7 +264,7 @@ export default function ProfileScreen() {
               </YStack>
             )}
 
-            {/* Personal Records - Placeholder for future PR tracking */}
+            {/* Personal Records */}
             <YStack gap="$3">
               <XStack ai="center" gap="$2">
                 <Award size={20} color="#7c3aed" />
@@ -266,19 +272,65 @@ export default function ProfileScreen() {
                   Personal Records
                 </Text>
               </XStack>
-              <Card elevate size="$4" p="$5" backgroundColor="#faf5ff">
-                <YStack ai="center" gap="$3">
-                  <Award size={40} color="#7c3aed" />
-                  <YStack ai="center" gap="$1">
-                    <Text fontSize="$4" fontWeight="bold" color="$gray12" textAlign="center">
-                      Track Your PRs
-                    </Text>
-                    <Text fontSize="$3" color="$gray10" textAlign="center">
-                      Start logging workouts to track your personal records
-                    </Text>
+              {topPRs.length === 0 ? (
+                <Card elevate size="$4" p="$5" backgroundColor="#faf5ff">
+                  <YStack ai="center" gap="$3">
+                    <Award size={40} color="#7c3aed" />
+                    <YStack ai="center" gap="$1">
+                      <Text fontSize="$4" fontWeight="bold" color="$gray12" textAlign="center">
+                        Track Your PRs
+                      </Text>
+                      <Text fontSize="$3" color="$gray10" textAlign="center">
+                        Start logging workouts to track your personal records
+                      </Text>
+                    </YStack>
                   </YStack>
-                </YStack>
-              </Card>
+                </Card>
+              ) : (
+                <Card elevate size="$4" p="$4" backgroundColor="white">
+                  <YStack gap="$3">
+                    {topPRs.map((pr, index) => (
+                      <XStack
+                        key={pr.id}
+                        ai="center"
+                        jc="space-between"
+                        pb="$3"
+                        borderBottomWidth={index < topPRs.length - 1 ? 1 : 0}
+                        borderBottomColor="$gray5"
+                      >
+                        <YStack f={1} gap="$1">
+                          <XStack ai="center" gap="$2">
+                            <XStack
+                              backgroundColor="#fef3c7"
+                              width={28}
+                              height={28}
+                              borderRadius="$10"
+                              ai="center"
+                              jc="center"
+                            >
+                              <Award size={16} color="#f59e0b" />
+                            </XStack>
+                            <Text fontSize="$4" fontWeight="600" color="$gray12">
+                              {pr.exercise?.name || 'Unknown Exercise'}
+                            </Text>
+                          </XStack>
+                          <Text fontSize="$2" color="$gray10" ml="$8">
+                            {new Date(pr.achieved_at).toLocaleDateString()}
+                          </Text>
+                        </YStack>
+                        <YStack ai="flex-end">
+                          <Text fontSize="$5" fontWeight="bold" color="#7c3aed">
+                            {pr.weight_lbs} lbs
+                          </Text>
+                          <Text fontSize="$2" color="$gray10">
+                            {pr.reps} {pr.reps === 1 ? 'rep' : 'reps'}
+                          </Text>
+                        </YStack>
+                      </XStack>
+                    ))}
+                  </YStack>
+                </Card>
+              )}
             </YStack>
 
             {/* Account Info */}
