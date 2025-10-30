@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Check, Clock, Plus, Save, Trash2, X } from 'lucide-react-native';
+import { Check, ChevronDown, Clock, Plus, Save, Trash2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import 'react-native-gesture-handler';
@@ -212,13 +212,36 @@ export default function ActiveWorkoutModal() {
 
   const handleDeleteSet = async (setId: string, sessionExerciseId: string) => {
     try {
+      const exercise = exercises.find(e => e.id === sessionExerciseId);
+      if (!exercise || exercise.sets.length < 2) {
+        Alert.alert('Cannot Delete', 'Each exercise must have at least one set.');
+        return;
+      }
+
       await workoutSessionService.deleteSet(setId);
+
+      // Filter out the deleted set and renumber remaining sets
       setExercises(prev =>
-        prev.map(ex =>
-          ex.id === sessionExerciseId
-            ? { ...ex, sets: ex.sets.filter(s => s.id !== setId) }
-            : ex
-        )
+        prev.map(ex => {
+          if (ex.id === sessionExerciseId) {
+            const filteredSets = ex.sets.filter(s => s.id !== setId);
+            // Renumber sets sequentially
+            const renumberedSets = filteredSets.map((set, index) => ({
+              ...set,
+              set_number: index + 1
+            }));
+
+            // Update set numbers in database
+            renumberedSets.forEach(async (set, index) => {
+              if (set.set_number !== ex.sets.find(s => s.id === set.id)?.set_number) {
+                await workoutSessionService.updateSet(set.id, { set_number: index + 1 });
+              }
+            });
+
+            return { ...ex, sets: renumberedSets };
+          }
+          return ex;
+        })
       );
     } catch (error) {
       console.error('Error deleting set:', error);
@@ -354,14 +377,18 @@ export default function ActiveWorkoutModal() {
               chromeless
               onPress={handleCancel}
               disabled={saving}
+              accessibilityLabel="Cancel workout"
             >
-              <X size={24} color="#6b7280" />
+              <Trash2 size={24} color="#ef4444" />
             </Button>
-            
+
             <YStack ai="center" gap="$1">
-              <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                {session?.name || 'Workout'}
-              </Text>
+              <XStack ai="center" gap="$2">
+                <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                  {session?.name || 'Workout'}
+                </Text>
+                <ChevronDown size={20} color="#9ca3af" />
+              </XStack>
               <XStack ai="center" gap="$2">
                 <Clock size={16} color="#7c3aed" />
                 <Text fontSize="$3" fontWeight="600" color="#7c3aed">
@@ -409,7 +436,7 @@ export default function ActiveWorkoutModal() {
 
                     {/* Sets */}
 <YStack gap="$2">
-  {exercise.sets.map((set) => {
+  {exercise.sets.map((set, setIndex) => {
     const locked = !!set.completed;
 
     return (
@@ -419,38 +446,49 @@ export default function ActiveWorkoutModal() {
           renderRightActions(() => handleDeleteSet(set.id, exercise.id))
         }
         overshootRight={false}
+        enabled={exercise.sets.length > 1}
         containerStyle={{ borderRadius: 8 }}
       >
         <XStack
           ai="center"
-          gap="$3"
-          backgroundColor="#f9fafb"
-          borderRadius="$2"
-          p="$2"
-          opacity={locked ? 0.65 : 1}
+          gap="$2.5"
+          backgroundColor={locked ? '#f0fdf4' : '#fafafa'}
+          borderRadius="$3"
+          p="$3"
+          borderWidth={locked ? 2 : 1}
+          borderColor={locked ? '#86efac' : '#e5e7eb'}
+          opacity={locked ? 0.85 : 1}
         >
           {/* Set label */}
-          <Text fontSize="$3" color="$gray10" minWidth={56}>
-            Set {set.set_number}
-          </Text>
+          <YStack minWidth={42} ai="center">
+            <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1">
+              SET
+            </Text>
+            <Text fontSize="$5" color={locked ? '#16a34a' : '#7c3aed'} fontWeight="bold">
+              {set.set_number}
+            </Text>
+          </YStack>
 
           {/* Weight (lbs) */}
           <YStack f={1}>
-            <Text fontSize="$2" color="$gray9" mb="$1">
-              Weight (lbs)
+            <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1.5" textTransform="uppercase">
+              Weight
             </Text>
             <TextInput
               style={{
-                backgroundColor: 'white',
-                borderWidth: 1,
-                borderColor: '#e5e7eb',
-                borderRadius: 6,
-                paddingVertical: 6,
-                paddingHorizontal: 10,
-                fontSize: 14,
+                backgroundColor: locked ? '#f9fafb' : 'white',
+                borderWidth: 2,
+                borderColor: locked ? '#e5e7eb' : '#d1d5db',
+                borderRadius: 8,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                fontSize: 16,
+                fontWeight: '600',
                 textAlign: 'center',
+                color: locked ? '#9ca3af' : '#1f2937',
               }}
-              placeholder="lbs"
+              placeholder="0"
+              placeholderTextColor="#d1d5db"
               keyboardType="numeric"
               value={set.weight_lbs ? String(set.weight_lbs) : ''}
               onChangeText={(text) => {
@@ -460,25 +498,31 @@ export default function ActiveWorkoutModal() {
               }}
               editable={!locked && !saving}
             />
+            <Text fontSize="$1" color="$gray8" mt="$1" textAlign="center">
+              lbs
+            </Text>
           </YStack>
 
           {/* Reps */}
           <YStack f={1}>
-            <Text fontSize="$2" color="$gray9" mb="$1">
+            <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1.5" textTransform="uppercase">
               Reps
             </Text>
             <TextInput
               style={{
-                backgroundColor: 'white',
-                borderWidth: 1,
-                borderColor: '#e5e7eb',
-                borderRadius: 6,
-                paddingVertical: 6,
-                paddingHorizontal: 10,
-                fontSize: 14,
+                backgroundColor: locked ? '#f9fafb' : 'white',
+                borderWidth: 2,
+                borderColor: locked ? '#e5e7eb' : '#d1d5db',
+                borderRadius: 8,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                fontSize: 16,
+                fontWeight: '600',
                 textAlign: 'center',
+                color: locked ? '#9ca3af' : '#1f2937',
               }}
-              placeholder="reps"
+              placeholder="0"
+              placeholderTextColor="#d1d5db"
               keyboardType="numeric"
               value={set.reps ? String(set.reps) : ''}
               onChangeText={(text) => {
@@ -488,25 +532,31 @@ export default function ActiveWorkoutModal() {
               }}
               editable={!locked && !saving}
             />
+            <Text fontSize="$1" color="$gray8" mt="$1" textAlign="center">
+              reps
+            </Text>
           </YStack>
 
           {/* RPE */}
           <YStack f={1}>
-            <Text fontSize="$2" color="$gray9" mb="$1">
+            <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1.5" textTransform="uppercase">
               RPE
             </Text>
             <TextInput
               style={{
-                backgroundColor: 'white',
-                borderWidth: 1,
-                borderColor: '#e5e7eb',
-                borderRadius: 6,
-                paddingVertical: 6,
-                paddingHorizontal: 10,
-                fontSize: 14,
+                backgroundColor: locked ? '#f9fafb' : 'white',
+                borderWidth: 2,
+                borderColor: locked ? '#e5e7eb' : '#d1d5db',
+                borderRadius: 8,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                fontSize: 16,
+                fontWeight: '600',
                 textAlign: 'center',
+                color: locked ? '#9ca3af' : '#1f2937',
               }}
-              placeholder="6–10"
+              placeholder="8"
+              placeholderTextColor="#d1d5db"
               keyboardType="numeric"
               value={
                 typeof set.rpe === 'number' && set.rpe > 0 ? String(set.rpe) : ''
@@ -514,42 +564,37 @@ export default function ActiveWorkoutModal() {
               onChangeText={(text) => {
                 if (locked) return;
                 const rpe = Number.parseFloat(text);
-                // clamp to 6–10 if you like
                 const safe = Number.isFinite(rpe) ? Math.max(1, Math.min(10, rpe)) : null;
                 handleUpdateSet(set.id, exercise.id, { rpe: safe });
               }}
               editable={!locked && !saving}
             />
+            <Text fontSize="$1" color="$gray8" mt="$1" textAlign="center">
+              1-10
+            </Text>
           </YStack>
 
           {/* Complete / Uncomplete toggle */}
-          <YStack minWidth={44} ai="center">
-            {locked ? (
-              <TouchableOpacity
-                onPress={() =>
-                  handleUpdateSet(set.id, exercise.id, { completed: false })
-                }
-                disabled={saving}
-                accessibilityLabel="Mark set as not completed"
-              >
-                <X size={24} color="#ef4444" />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                onPress={() => {
-                  // Optional: simple validation before allowing complete
-                  // if ((set.weight_lbs ?? 0) <= 0 || (set.reps ?? 0) <= 0) {
-                  //   Alert.alert('Missing values', 'Please enter weight and reps first.');
-                  //   return;
-                  // }
-                  handleUpdateSet(set.id, exercise.id, { completed: true });
-                }}
-                disabled={saving}
-                accessibilityLabel="Mark set as completed"
-              >
-                <Check size={24} color="#16a34a" />
-              </TouchableOpacity>
-            )}
+          <YStack minWidth={48} ai="center">
+            <TouchableOpacity
+              onPress={() =>
+                handleUpdateSet(set.id, exercise.id, { completed: !locked })
+              }
+              disabled={saving}
+              accessibilityLabel={locked ? "Mark set as not completed" : "Mark set as completed"}
+              style={{
+                backgroundColor: locked ? '#16a34a' : '#f3f4f6',
+                borderRadius: 8,
+                padding: 10,
+                shadowColor: locked ? '#16a34a' : '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: locked ? 0.3 : 0.1,
+                shadowRadius: 3,
+                elevation: 3,
+              }}
+            >
+              <Check size={24} color={locked ? 'white' : '#9ca3af'} />
+            </TouchableOpacity>
           </YStack>
         </XStack>
       </Swipeable>
@@ -564,8 +609,10 @@ export default function ActiveWorkoutModal() {
     icon={Plus}
     onPress={() => handleAddSet(exercise.id)}
     disabled={saving}
+    pressStyle={{ backgroundColor: '#e5e7eb' }}
+    borderRadius="$3"
   >
-    <Text>Add Set</Text>
+    <Text fontWeight="600">Add Set</Text>
   </Button>
 </YStack>
 

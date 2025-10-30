@@ -18,6 +18,7 @@ export default function AthleteHomeScreen() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [startingWorkout, setStartingWorkout] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -69,43 +70,55 @@ export default function AthleteHomeScreen() {
   };
 
   const handleStartWorkout = async (workout: Workout) => {
-    if (!user) return;
-    
+    if (!user || startingWorkout) return;
+
     try {
+      setStartingWorkout(true);
+
       // Create session in database
       const session = await workoutSessionService.createSession(user.id, {
         name: workout.name,
         workout_template_id: workout.id,
         notes: ''
       });
-      
+
       // Set active workout in context
       await startWorkout(session.id);
-      
+
+      // Small delay to ensure state is set before navigation
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       // Open workout modal
       router.push('/workout');
     } catch (error) {
       console.error('Error starting workout:', error);
+      setStartingWorkout(false);
     }
   };
 
   const handleStartCustomWorkout = async () => {
-    if (!user) return;
-    
+    if (!user || startingWorkout) return;
+
     try {
+      setStartingWorkout(true);
+
       // Create session in database
       const session = await workoutSessionService.createSession(user.id, {
         name: 'Custom Workout',
         notes: ''
       });
-      
+
       // Set active workout in context
       await startWorkout(session.id);
-      
+
+      // Small delay to ensure state is set before navigation
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       // Open workout modal
       router.push('/workout');
     } catch (error) {
       console.error('Error starting workout:', error);
+      setStartingWorkout(false);
     }
   };
 
@@ -241,10 +254,19 @@ export default function AthleteHomeScreen() {
                         size="$4"
                         backgroundColor="#16a34a"
                         color="white"
-                        icon={Play}
+                        icon={startingWorkout ? undefined : Play}
                         onPress={() => handleStartWorkout(workout)}
+                        disabled={startingWorkout}
+                        opacity={startingWorkout ? 0.8 : 1}
                       >
-                        Start Workout
+                        {startingWorkout ? (
+                          <XStack ai="center" gap="$2">
+                            <Spinner size="small" color="white" />
+                            <Text color="white">Starting...</Text>
+                          </XStack>
+                        ) : (
+                          <Text color="white">Start Workout</Text>
+                        )}
                       </Button>
                     </YStack>
                   </Card>
@@ -264,10 +286,19 @@ export default function AthleteHomeScreen() {
                   borderColor="#e5e7eb"
                   borderWidth={1}
                   color="$gray12"
-                  icon={Play}
+                  icon={startingWorkout ? undefined : Play}
                   onPress={handleStartCustomWorkout}
+                  disabled={startingWorkout}
+                  opacity={startingWorkout ? 0.6 : 1}
                 >
-                  Start Custom Workout
+                  {startingWorkout ? (
+                    <XStack ai="center" gap="$2">
+                      <Spinner size="small" color="#7c3aed" />
+                      <Text>Starting Workout...</Text>
+                    </XStack>
+                  ) : (
+                    <Text>Start Custom Workout</Text>
+                  )}
                 </Button>
               </YStack>
             </Card>
