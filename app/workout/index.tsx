@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Check, ChevronDown, Clock, Plus, Save, Trash2 } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import 'react-native-gesture-handler';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -57,6 +57,13 @@ export default function ActiveWorkoutModal() {
       loadAvailableExercises();
     }
   }, [sessionId]);
+
+  // Refresh exercises when screen regains focus (e.g., after creating new exercise)
+  useFocusEffect(
+    useCallback(() => {
+      loadAvailableExercises();
+    }, [])
+  );
 
   const loadSession = async () => {
     if (!sessionId) return;
@@ -364,10 +371,55 @@ export default function ActiveWorkoutModal() {
     );
   }
 
+  if (isCollapsed) {
+    // Minimized view - small bar at bottom
+    return (
+      <YStack
+        position="absolute"
+        bottom={0}
+        left={0}
+        right={0}
+        backgroundColor="white"
+        borderTopWidth={2}
+        borderTopColor="#7c3aed"
+        p="$3"
+        shadowColor="#000"
+        shadowOffset={{ width: 0, height: -2 }}
+        shadowOpacity={0.1}
+        shadowRadius={4}
+        elevation={5}
+        zIndex={1000}
+      >
+        <TouchableOpacity onPress={() => setIsCollapsed(false)}>
+          <XStack ai="center" jc="space-between">
+            <YStack f={1} gap="$1">
+              <Text fontSize="$4" fontWeight="bold" color="$gray12">
+                {session?.name || 'Workout'}
+              </Text>
+              <XStack ai="center" gap="$2">
+                <Clock size={14} color="#7c3aed" />
+                <Text fontSize="$2" fontWeight="600" color="#7c3aed">
+                  {formatTime(elapsedTime)}
+                </Text>
+              </XStack>
+            </YStack>
+            <ChevronDown
+              size={24}
+              color="#7c3aed"
+              style={{
+                transform: [{ rotate: '180deg' }]
+              }}
+            />
+          </XStack>
+        </TouchableOpacity>
+      </YStack>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <YStack f={1} backgroundColor="#f5f5f5">
@@ -392,9 +444,6 @@ export default function ActiveWorkoutModal() {
                   <ChevronDown
                     size={20}
                     color="#9ca3af"
-                    style={{
-                      transform: [{ rotate: isCollapsed ? '180deg' : '0deg' }]
-                    }}
                   />
                 </XStack>
                 <XStack ai="center" gap="$2">
@@ -418,9 +467,8 @@ export default function ActiveWorkoutModal() {
             </Button>
           </XStack>
 
-          {!isCollapsed && (
-            <ScrollView>
-              <YStack p="$4" gap="$3" pb="$24">
+          <ScrollView>
+            <YStack p="$4" gap="$3" pb="$24">
                 {/* Exercises */}
                 {exercises.map((exercise) => (
                 <Card key={exercise.id} elevate size="$4" p="$4" backgroundColor="white">
@@ -672,9 +720,8 @@ export default function ActiveWorkoutModal() {
                   />
                 </YStack>
               </Card>
-              </YStack>
-            </ScrollView>
-          )}
+            </YStack>
+          </ScrollView>
 
           {/* Exercise Selector Modal */}
           {showExercisePicker && (
@@ -682,6 +729,7 @@ export default function ActiveWorkoutModal() {
               exercises={availableExercises}
               onSelect={handleAddExercise}
               onClose={() => setShowExercisePicker(false)}
+              onRefresh={loadAvailableExercises}
               disabled={saving}
             />
           )}
