@@ -1,8 +1,9 @@
-import { Search, X } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import { Plus, Search, X } from 'lucide-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
 import { TextInput as RNTextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { Button, Card, Text, XStack, YStack } from 'tamagui';
 import { Exercise } from '../types/database.types';
+import { router } from 'expo-router';
 
 const CATEGORIES = ['All', 'Legs', 'Chest', 'Back', 'Shoulders', 'Arms', 'Core', 'Full Body'];
 
@@ -10,17 +11,29 @@ interface ExerciseSelectorModalProps {
   exercises: Exercise[];
   onSelect: (exercise: Exercise) => void;
   onClose: () => void;
+  onRefresh?: () => Promise<void>;
   disabled?: boolean;
 }
 
-export function ExerciseSelectorModal({ 
-  exercises, 
-  onSelect, 
+export function ExerciseSelectorModal({
+  exercises,
+  onSelect,
   onClose,
-  disabled = false 
+  onRefresh,
+  disabled = false
 }: ExerciseSelectorModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+  // Refresh exercises when modal becomes visible
+  useEffect(() => {
+    const refresh = async () => {
+      if (onRefresh) {
+        await onRefresh();
+      }
+    };
+    refresh();
+  }, []);
 
   // Filter exercises based on search and category
   const filteredExercises = useMemo(() => {
@@ -74,13 +87,23 @@ export function ExerciseSelectorModal({
             <Text fontSize="$6" fontWeight="bold" color="$gray12">
               Select Exercise
             </Text>
-            <Button
-              size="$3"
-              chromeless
-              icon={X}
-              onPress={onClose}
-              disabled={disabled}
-            />
+            <XStack gap="$2">
+              <Button
+                size="$3"
+                chromeless
+                icon={Plus}
+                color="#7c3aed"
+                onPress={() => router.push('/create-exercise')}
+                disabled={disabled}
+              />
+              <Button
+                size="$3"
+                chromeless
+                icon={X}
+                onPress={onClose}
+                disabled={disabled}
+              />
+            </XStack>
           </XStack>
 
           <YStack gap="$2">
@@ -163,30 +186,33 @@ export function ExerciseSelectorModal({
       </YStack>
     ) : (
       filteredExercises.map((exercise) => (
-        <YStack
+        <TouchableOpacity
           key={exercise.id}
-          onPress={() => onSelect(exercise)}
-          backgroundColor="white"
-          borderWidth={1}
-          borderColor="#e5e7eb"
-          borderRadius="$3"
-          p="$3"
-          gap="$2"
-          pressStyle={{ backgroundColor: '#f9fafb' }}
+          onPress={() => !disabled && onSelect(exercise)}
           disabled={disabled}
+          activeOpacity={0.7}
         >
-          <Text fontSize="$4" fontWeight="600" color="$gray12">
-            {exercise.name}
-          </Text>
-          <Text fontSize="$2" color="$gray10" textTransform="capitalize">
-            {exercise.category.replace(/_/g, ' ')}
-          </Text>
-          {exercise.description && (
-            <Text fontSize="$2" color="$gray9" numberOfLines={2}>
-              {exercise.description}
+          <YStack
+            backgroundColor="white"
+            borderWidth={1}
+            borderColor="#e5e7eb"
+            borderRadius="$3"
+            p="$3"
+            gap="$2"
+          >
+            <Text fontSize="$4" fontWeight="600" color="$gray12">
+              {exercise.name}
             </Text>
-          )}
-        </YStack>
+            <Text fontSize="$2" color="$gray10" textTransform="capitalize">
+              {exercise.category.replace(/_/g, ' ')}
+            </Text>
+            {exercise.description && (
+              <Text fontSize="$2" color="$gray9" numberOfLines={2}>
+                {exercise.description}
+              </Text>
+            )}
+          </YStack>
+        </TouchableOpacity>
       ))
     )}
   </YStack>
