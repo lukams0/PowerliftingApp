@@ -90,6 +90,9 @@ export default function AthleteHomeScreen() {
 
       // Open workout modal
       router.push('/workout');
+
+      // Reset loading state after navigation
+      setStartingWorkout(false);
     } catch (error) {
       console.error('Error starting workout:', error);
       setStartingWorkout(false);
@@ -116,6 +119,9 @@ export default function AthleteHomeScreen() {
 
       // Open workout modal
       router.push('/workout');
+
+      // Reset loading state after navigation
+      setStartingWorkout(false);
     } catch (error) {
       console.error('Error starting workout:', error);
       setStartingWorkout(false);

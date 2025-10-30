@@ -163,30 +163,33 @@ export function ExerciseSelectorModal({
       </YStack>
     ) : (
       filteredExercises.map((exercise) => (
-        <YStack
+        <TouchableOpacity
           key={exercise.id}
-          onPress={() => onSelect(exercise)}
-          backgroundColor="white"
-          borderWidth={1}
-          borderColor="#e5e7eb"
-          borderRadius="$3"
-          p="$3"
-          gap="$2"
-          pressStyle={{ backgroundColor: '#f9fafb' }}
+          onPress={() => !disabled && onSelect(exercise)}
           disabled={disabled}
+          activeOpacity={0.7}
         >
-          <Text fontSize="$4" fontWeight="600" color="$gray12">
-            {exercise.name}
-          </Text>
-          <Text fontSize="$2" color="$gray10" textTransform="capitalize">
-            {exercise.category.replace(/_/g, ' ')}
-          </Text>
-          {exercise.description && (
-            <Text fontSize="$2" color="$gray9" numberOfLines={2}>
-              {exercise.description}
+          <YStack
+            backgroundColor="white"
+            borderWidth={1}
+            borderColor="#e5e7eb"
+            borderRadius="$3"
+            p="$3"
+            gap="$2"
+          >
+            <Text fontSize="$4" fontWeight="600" color="$gray12">
+              {exercise.name}
             </Text>
-          )}
-        </YStack>
+            <Text fontSize="$2" color="$gray10" textTransform="capitalize">
+              {exercise.category.replace(/_/g, ' ')}
+            </Text>
+            {exercise.description && (
+              <Text fontSize="$2" color="$gray9" numberOfLines={2}>
+                {exercise.description}
+              </Text>
+            )}
+          </YStack>
+        </TouchableOpacity>
       ))
     )}
   </YStack>

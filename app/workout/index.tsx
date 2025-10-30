@@ -33,6 +33,7 @@ export default function ActiveWorkoutModal() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [notes, setNotes] = useState('');
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Timer
   useEffect(() => {
@@ -382,20 +383,28 @@ export default function ActiveWorkoutModal() {
               <Trash2 size={24} color="#ef4444" />
             </Button>
 
-            <YStack ai="center" gap="$1">
-              <XStack ai="center" gap="$2">
-                <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                  {session?.name || 'Workout'}
-                </Text>
-                <ChevronDown size={20} color="#9ca3af" />
-              </XStack>
-              <XStack ai="center" gap="$2">
-                <Clock size={16} color="#7c3aed" />
-                <Text fontSize="$3" fontWeight="600" color="#7c3aed">
-                  {formatTime(elapsedTime)}
-                </Text>
-              </XStack>
-            </YStack>
+            <TouchableOpacity onPress={() => setIsCollapsed(!isCollapsed)}>
+              <YStack ai="center" gap="$1">
+                <XStack ai="center" gap="$2">
+                  <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                    {session?.name || 'Workout'}
+                  </Text>
+                  <ChevronDown
+                    size={20}
+                    color="#9ca3af"
+                    style={{
+                      transform: [{ rotate: isCollapsed ? '180deg' : '0deg' }]
+                    }}
+                  />
+                </XStack>
+                <XStack ai="center" gap="$2">
+                  <Clock size={16} color="#7c3aed" />
+                  <Text fontSize="$3" fontWeight="600" color="#7c3aed">
+                    {formatTime(elapsedTime)}
+                  </Text>
+                </XStack>
+              </YStack>
+            </TouchableOpacity>
 
             <Button
               size="$3"
@@ -409,10 +418,11 @@ export default function ActiveWorkoutModal() {
             </Button>
           </XStack>
 
-          <ScrollView>
-            <YStack p="$4" gap="$3" pb="$24">
-              {/* Exercises */}
-              {exercises.map((exercise) => (
+          {!isCollapsed && (
+            <ScrollView>
+              <YStack p="$4" gap="$3" pb="$24">
+                {/* Exercises */}
+                {exercises.map((exercise) => (
                 <Card key={exercise.id} elevate size="$4" p="$4" backgroundColor="white">
                   <YStack gap="$3">
                     <XStack ai="center" jc="space-between">
@@ -662,8 +672,9 @@ export default function ActiveWorkoutModal() {
                   />
                 </YStack>
               </Card>
-            </YStack>
-          </ScrollView>
+              </YStack>
+            </ScrollView>
+          )}
 
           {/* Exercise Selector Modal */}
           {showExercisePicker && (
