@@ -33,7 +33,6 @@ export default function ActiveWorkoutModal() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [notes, setNotes] = useState('');
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Timer
   useEffect(() => {
@@ -372,56 +371,12 @@ export default function ActiveWorkoutModal() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isCollapsed ? 'transparent' : '#f5f5f5' }} edges={['top']}>
-      {isCollapsed ? (
-        // Minimized view - small bar at bottom
-        <YStack
-          f={1}
-          jc="flex-end"
-          backgroundColor="transparent"
-        >
-          <YStack
-            backgroundColor="white"
-            borderTopWidth={2}
-            borderTopColor="#7c3aed"
-            p="$3"
-            shadowColor="#000"
-            shadowOffset={{ width: 0, height: -2 }}
-            shadowOpacity={0.1}
-            shadowRadius={4}
-            elevation={5}
-          >
-            <TouchableOpacity onPress={() => setIsCollapsed(false)}>
-              <XStack ai="center" jc="space-between">
-                <YStack f={1} gap="$1">
-                  <Text fontSize="$4" fontWeight="bold" color="$gray12">
-                    {session?.name || 'Workout'}
-                  </Text>
-                  <XStack ai="center" gap="$2">
-                    <Clock size={14} color="#7c3aed" />
-                    <Text fontSize="$2" fontWeight="600" color="#7c3aed">
-                      {formatTime(elapsedTime)}
-                    </Text>
-                  </XStack>
-                </YStack>
-                <ChevronDown
-                  size={24}
-                  color="#7c3aed"
-                  style={{
-                    transform: [{ rotate: '180deg' }]
-                  }}
-                />
-              </XStack>
-            </TouchableOpacity>
-          </YStack>
-        </YStack>
-      ) : (
-        // Full workout view
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <YStack f={1} backgroundColor="#f5f5f5">
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <YStack f={1} backgroundColor="#f5f5f5">
           {/* Header */}
           <XStack backgroundColor="white" p="$4" ai="center" jc="space-between" borderBottomWidth={1} borderBottomColor="#e5e7eb">
             <Button
@@ -434,7 +389,7 @@ export default function ActiveWorkoutModal() {
               <Trash2 size={24} color="#ef4444" />
             </Button>
 
-            <TouchableOpacity onPress={() => setIsCollapsed(!isCollapsed)}>
+            <TouchableOpacity onPress={() => router.back()}>
               <YStack ai="center" gap="$1">
                 <XStack ai="center" gap="$2">
                   <Text fontSize="$5" fontWeight="bold" color="$gray12">
@@ -468,8 +423,8 @@ export default function ActiveWorkoutModal() {
 
           <ScrollView>
             <YStack p="$4" gap="$3" pb="$24">
-                {/* Exercises */}
-                {exercises.map((exercise) => (
+              {/* Exercises */}
+              {exercises.map((exercise) => (
                 <Card key={exercise.id} elevate size="$4" p="$4" backgroundColor="white">
                   <YStack gap="$3">
                     <XStack ai="center" jc="space-between">
@@ -492,187 +447,186 @@ export default function ActiveWorkoutModal() {
                     </XStack>
 
                     {/* Sets */}
-<YStack gap="$2">
-  {exercise.sets.map((set, setIndex) => {
-    const locked = !!set.completed;
+                    <YStack gap="$2">
+                      {exercise.sets.map((set, setIndex) => {
+                        const locked = !!set.completed;
 
-    return (
-      <Swipeable
-        key={set.id}
-        renderRightActions={() =>
-          renderRightActions(() => handleDeleteSet(set.id, exercise.id))
-        }
-        overshootRight={false}
-        enabled={exercise.sets.length > 1}
-        containerStyle={{ borderRadius: 8 }}
-      >
-        <XStack
-          ai="center"
-          gap="$2.5"
-          backgroundColor={locked ? '#f0fdf4' : '#fafafa'}
-          borderRadius="$3"
-          p="$3"
-          borderWidth={locked ? 2 : 1}
-          borderColor={locked ? '#86efac' : '#e5e7eb'}
-          opacity={locked ? 0.85 : 1}
-        >
-          {/* Set label */}
-          <YStack minWidth={42} ai="center">
-            <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1">
-              SET
-            </Text>
-            <Text fontSize="$5" color={locked ? '#16a34a' : '#7c3aed'} fontWeight="bold">
-              {set.set_number}
-            </Text>
-          </YStack>
+                        return (
+                          <Swipeable
+                            key={set.id}
+                            renderRightActions={() =>
+                              renderRightActions(() => handleDeleteSet(set.id, exercise.id))
+                            }
+                            overshootRight={false}
+                            enabled={exercise.sets.length > 1}
+                            containerStyle={{ borderRadius: 8 }}
+                          >
+                            <XStack
+                              ai="center"
+                              gap="$2.5"
+                              backgroundColor={locked ? '#f0fdf4' : '#fafafa'}
+                              borderRadius="$3"
+                              p="$3"
+                              borderWidth={locked ? 2 : 1}
+                              borderColor={locked ? '#86efac' : '#e5e7eb'}
+                              opacity={locked ? 0.85 : 1}
+                            >
+                              {/* Set label */}
+                              <YStack minWidth={42} ai="center">
+                                <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1">
+                                  SET
+                                </Text>
+                                <Text fontSize="$5" color={locked ? '#16a34a' : '#7c3aed'} fontWeight="bold">
+                                  {set.set_number}
+                                </Text>
+                              </YStack>
 
-          {/* Weight (lbs) */}
-          <YStack f={1}>
-            <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1.5" textTransform="uppercase">
-              Weight
-            </Text>
-            <TextInput
-              style={{
-                backgroundColor: locked ? '#f9fafb' : 'white',
-                borderWidth: 2,
-                borderColor: locked ? '#e5e7eb' : '#d1d5db',
-                borderRadius: 8,
-                paddingVertical: 10,
-                paddingHorizontal: 12,
-                fontSize: 16,
-                fontWeight: '600',
-                textAlign: 'center',
-                color: locked ? '#9ca3af' : '#1f2937',
-              }}
-              placeholder="0"
-              placeholderTextColor="#d1d5db"
-              keyboardType="numeric"
-              value={set.weight_lbs ? String(set.weight_lbs) : ''}
-              onChangeText={(text) => {
-                if (locked) return;
-                const weight = Number.parseInt(text || '0', 10) || 0;
-                handleUpdateSet(set.id, exercise.id, { weight_lbs: weight });
-              }}
-              editable={!locked && !saving}
-            />
-            <Text fontSize="$1" color="$gray8" mt="$1" textAlign="center">
-              lbs
-            </Text>
-          </YStack>
+                              {/* Weight (lbs) */}
+                              <YStack f={1}>
+                                <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1.5" textTransform="uppercase">
+                                  Weight
+                                </Text>
+                                <TextInput
+                                  style={{
+                                    backgroundColor: locked ? '#f9fafb' : 'white',
+                                    borderWidth: 2,
+                                    borderColor: locked ? '#e5e7eb' : '#d1d5db',
+                                    borderRadius: 8,
+                                    paddingVertical: 10,
+                                    paddingHorizontal: 12,
+                                    fontSize: 16,
+                                    fontWeight: '600',
+                                    textAlign: 'center',
+                                    color: locked ? '#9ca3af' : '#1f2937',
+                                  }}
+                                  placeholder="0"
+                                  placeholderTextColor="#d1d5db"
+                                  keyboardType="numeric"
+                                  value={set.weight_lbs ? String(set.weight_lbs) : ''}
+                                  onChangeText={(text) => {
+                                    if (locked) return;
+                                    const weight = Number.parseInt(text || '0', 10) || 0;
+                                    handleUpdateSet(set.id, exercise.id, { weight_lbs: weight });
+                                  }}
+                                  editable={!locked && !saving}
+                                />
+                                <Text fontSize="$1" color="$gray8" mt="$1" textAlign="center">
+                                  lbs
+                                </Text>
+                              </YStack>
 
-          {/* Reps */}
-          <YStack f={1}>
-            <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1.5" textTransform="uppercase">
-              Reps
-            </Text>
-            <TextInput
-              style={{
-                backgroundColor: locked ? '#f9fafb' : 'white',
-                borderWidth: 2,
-                borderColor: locked ? '#e5e7eb' : '#d1d5db',
-                borderRadius: 8,
-                paddingVertical: 10,
-                paddingHorizontal: 12,
-                fontSize: 16,
-                fontWeight: '600',
-                textAlign: 'center',
-                color: locked ? '#9ca3af' : '#1f2937',
-              }}
-              placeholder="0"
-              placeholderTextColor="#d1d5db"
-              keyboardType="numeric"
-              value={set.reps ? String(set.reps) : ''}
-              onChangeText={(text) => {
-                if (locked) return;
-                const reps = Number.parseInt(text || '0', 10) || 0;
-                handleUpdateSet(set.id, exercise.id, { reps });
-              }}
-              editable={!locked && !saving}
-            />
-            <Text fontSize="$1" color="$gray8" mt="$1" textAlign="center">
-              reps
-            </Text>
-          </YStack>
+                              {/* Reps */}
+                              <YStack f={1}>
+                                <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1.5" textTransform="uppercase">
+                                  Reps
+                                </Text>
+                                <TextInput
+                                  style={{
+                                    backgroundColor: locked ? '#f9fafb' : 'white',
+                                    borderWidth: 2,
+                                    borderColor: locked ? '#e5e7eb' : '#d1d5db',
+                                    borderRadius: 8,
+                                    paddingVertical: 10,
+                                    paddingHorizontal: 12,
+                                    fontSize: 16,
+                                    fontWeight: '600',
+                                    textAlign: 'center',
+                                    color: locked ? '#9ca3af' : '#1f2937',
+                                  }}
+                                  placeholder="0"
+                                  placeholderTextColor="#d1d5db"
+                                  keyboardType="numeric"
+                                  value={set.reps ? String(set.reps) : ''}
+                                  onChangeText={(text) => {
+                                    if (locked) return;
+                                    const reps = Number.parseInt(text || '0', 10) || 0;
+                                    handleUpdateSet(set.id, exercise.id, { reps });
+                                  }}
+                                  editable={!locked && !saving}
+                                />
+                                <Text fontSize="$1" color="$gray8" mt="$1" textAlign="center">
+                                  reps
+                                </Text>
+                              </YStack>
 
-          {/* RPE */}
-          <YStack f={1}>
-            <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1.5" textTransform="uppercase">
-              RPE
-            </Text>
-            <TextInput
-              style={{
-                backgroundColor: locked ? '#f9fafb' : 'white',
-                borderWidth: 2,
-                borderColor: locked ? '#e5e7eb' : '#d1d5db',
-                borderRadius: 8,
-                paddingVertical: 10,
-                paddingHorizontal: 12,
-                fontSize: 16,
-                fontWeight: '600',
-                textAlign: 'center',
-                color: locked ? '#9ca3af' : '#1f2937',
-              }}
-              placeholder="8"
-              placeholderTextColor="#d1d5db"
-              keyboardType="numeric"
-              value={
-                typeof set.rpe === 'number' && set.rpe > 0 ? String(set.rpe) : ''
-              }
-              onChangeText={(text) => {
-                if (locked) return;
-                const rpe = Number.parseFloat(text);
-                const safe = Number.isFinite(rpe) ? Math.max(1, Math.min(10, rpe)) : null;
-                handleUpdateSet(set.id, exercise.id, { rpe: safe });
-              }}
-              editable={!locked && !saving}
-            />
-            <Text fontSize="$1" color="$gray8" mt="$1" textAlign="center">
-              1-10
-            </Text>
-          </YStack>
+                              {/* RPE */}
+                              <YStack f={1}>
+                                <Text fontSize="$1" color="$gray9" fontWeight="600" mb="$1.5" textTransform="uppercase">
+                                  RPE
+                                </Text>
+                                <TextInput
+                                  style={{
+                                    backgroundColor: locked ? '#f9fafb' : 'white',
+                                    borderWidth: 2,
+                                    borderColor: locked ? '#e5e7eb' : '#d1d5db',
+                                    borderRadius: 8,
+                                    paddingVertical: 10,
+                                    paddingHorizontal: 12,
+                                    fontSize: 16,
+                                    fontWeight: '600',
+                                    textAlign: 'center',
+                                    color: locked ? '#9ca3af' : '#1f2937',
+                                  }}
+                                  placeholder="8"
+                                  placeholderTextColor="#d1d5db"
+                                  keyboardType="numeric"
+                                  value={
+                                    typeof set.rpe === 'number' && set.rpe > 0 ? String(set.rpe) : ''
+                                  }
+                                  onChangeText={(text) => {
+                                    if (locked) return;
+                                    const rpe = Number.parseFloat(text);
+                                    const safe = Number.isFinite(rpe) ? Math.max(1, Math.min(10, rpe)) : null;
+                                    handleUpdateSet(set.id, exercise.id, { rpe: safe });
+                                  }}
+                                  editable={!locked && !saving}
+                                />
+                                <Text fontSize="$1" color="$gray8" mt="$1" textAlign="center">
+                                  1-10
+                                </Text>
+                              </YStack>
 
-          {/* Complete / Uncomplete toggle */}
-          <YStack minWidth={48} ai="center">
-            <TouchableOpacity
-              onPress={() =>
-                handleUpdateSet(set.id, exercise.id, { completed: !locked })
-              }
-              disabled={saving}
-              accessibilityLabel={locked ? "Mark set as not completed" : "Mark set as completed"}
-              style={{
-                backgroundColor: locked ? '#16a34a' : '#f3f4f6',
-                borderRadius: 8,
-                padding: 10,
-                shadowColor: locked ? '#16a34a' : '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: locked ? 0.3 : 0.1,
-                shadowRadius: 3,
-                elevation: 3,
-              }}
-            >
-              <Check size={24} color={locked ? 'white' : '#9ca3af'} />
-            </TouchableOpacity>
-          </YStack>
-        </XStack>
-      </Swipeable>
-    );
-  })}
+                              {/* Complete / Uncomplete toggle */}
+                              <YStack minWidth={48} ai="center">
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    handleUpdateSet(set.id, exercise.id, { completed: !locked })
+                                  }
+                                  disabled={saving}
+                                  accessibilityLabel={locked ? "Mark set as not completed" : "Mark set as completed"}
+                                  style={{
+                                    backgroundColor: locked ? '#16a34a' : '#f3f4f6',
+                                    borderRadius: 8,
+                                    padding: 10,
+                                    shadowColor: locked ? '#16a34a' : '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: locked ? 0.3 : 0.1,
+                                    shadowRadius: 3,
+                                    elevation: 3,
+                                  }}
+                                >
+                                  <Check size={24} color={locked ? 'white' : '#9ca3af'} />
+                                </TouchableOpacity>
+                              </YStack>
+                            </XStack>
+                          </Swipeable>
+                        );
+                      })}
 
-  {/* Add Set Button */}
-  <Button
-    size="$3"
-    backgroundColor="#f3f4f6"
-    color="$gray12"
-    icon={Plus}
-    onPress={() => handleAddSet(exercise.id)}
-    disabled={saving}
-    pressStyle={{ backgroundColor: '#e5e7eb' }}
-    borderRadius="$3"
-  >
-    <Text fontWeight="600">Add Set</Text>
-  </Button>
-</YStack>
-
+                      {/* Add Set Button */}
+                      <Button
+                        size="$3"
+                        backgroundColor="#f3f4f6"
+                        color="$gray12"
+                        icon={Plus}
+                        onPress={() => handleAddSet(exercise.id)}
+                        disabled={saving}
+                        pressStyle={{ backgroundColor: '#e5e7eb' }}
+                        borderRadius="$3"
+                      >
+                        <Text fontWeight="600">Add Set</Text>
+                      </Button>
+                    </YStack>
                   </YStack>
                 </Card>
               ))}
@@ -732,9 +686,8 @@ export default function ActiveWorkoutModal() {
               disabled={saving}
             />
           )}
-          </YStack>
-        </KeyboardAvoidingView>
-      )}
+        </YStack>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -329,6 +329,7 @@ class WorkoutSessionService {
       reps?: number;
       rpe?: number | null;
       completed?: boolean;
+      set_number?: number;
     }
   ): Promise<ExerciseSet> {
     try {
