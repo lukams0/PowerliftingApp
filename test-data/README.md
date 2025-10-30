@@ -4,6 +4,15 @@ This directory contains SQL scripts to populate your database with realistic tes
 
 ## Quick Start
 
+### Step 0: Create a Coach (if needed)
+
+If you don't have a coach profile yet, run the `create-coach.sql` script first:
+
+1. Open your Supabase SQL Editor
+2. Copy and paste the contents of `create-coach.sql`
+3. Click "Run"
+4. Note the `user_id` returned - this is your coach ID
+
 ### Step 1: Get Your IDs
 
 Run these queries in your Supabase SQL Editor to get the IDs you need:
@@ -12,7 +21,7 @@ Run these queries in your Supabase SQL Editor to get the IDs you need:
 -- Get a coach ID
 SELECT id, email FROM profiles WHERE role = 'coach' LIMIT 1;
 
--- Get an athlete ID
+-- Get an athlete ID (your current user)
 SELECT id, email FROM profiles WHERE role = 'athlete' LIMIT 1;
 
 -- Get exercise IDs
