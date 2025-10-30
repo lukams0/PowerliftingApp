@@ -1,90 +1,66 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Calendar, CheckCircle, Clock, Dumbbell, Play } from 'lucide-react-native';
-import React from 'react';
+import { ArrowLeft, Calendar, Clock, Dumbbell, Play } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, Text, XStack, YStack } from 'tamagui';
-
-// Mock workout data
-const mockWorkout = {
-  id: 'w3-3',
-  name: 'Upper Body B',
-  day: 'Thursday',
-  weekLabel: 'Week 3',
-  blockName: 'Foundation Block',
-  programName: 'Strength Building Phase',
-  completed: false,
-  estimatedDuration: '60 min',
-  exercises: [
-    {
-      id: 'ex1',
-      name: 'Overhead Press',
-      sets: 4,
-      reps: '8',
-      weight: '115 lbs',
-      rpe: '7-8',
-      notes: 'Focus on core stability',
-      restTime: '3 min',
-    },
-    {
-      id: 'ex2',
-      name: 'Incline Bench Press',
-      sets: 4,
-      reps: '10',
-      weight: '165 lbs',
-      rpe: '7-8',
-      notes: '',
-      restTime: '2.5 min',
-    },
-    {
-      id: 'ex3',
-      name: 'Barbell Row',
-      sets: 4,
-      reps: '10',
-      weight: '155 lbs',
-      rpe: '7-8',
-      notes: 'Keep back flat, pull to sternum',
-      restTime: '2.5 min',
-    },
-    {
-      id: 'ex4',
-      name: 'Lateral Raises',
-      sets: 3,
-      reps: '12',
-      weight: '20 lbs',
-      rpe: '8',
-      notes: '',
-      restTime: '90 sec',
-    },
-    {
-      id: 'ex5',
-      name: 'Face Pulls',
-      sets: 3,
-      reps: '15',
-      weight: '40 lbs',
-      rpe: '7',
-      notes: 'High rep for shoulder health',
-      restTime: '90 sec',
-    },
-    {
-      id: 'ex6',
-      name: 'Tricep Pushdowns',
-      sets: 3,
-      reps: '12',
-      weight: '50 lbs',
-      rpe: '8',
-      notes: '',
-      restTime: '90 sec',
-    },
-  ],
-  coachNotes: 'Focus on maintaining good form this week. This is a volume week, so save some energy for Friday\'s lower body session.',
-};
+import { Button, Card, Spinner, Text, XStack, YStack } from 'tamagui';
+import { programService } from '../../../../services/program.service';
+import type { Workout, WorkoutExercise } from '../../../../services/program.service';
 
 export default function WorkoutDetailPage() {
   const { workoutId } = useLocalSearchParams();
-  
-  // TODO: Fetch workout data based on workoutId
-  const workout = mockWorkout;
+  const [workout, setWorkout] = useState<(Workout & {
+    exercises: (WorkoutExercise & {
+      exercise: { id: string; name: string; category: string };
+    })[];
+  }) | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadWorkout();
+  }, [workoutId]);
+
+  const loadWorkout = async () => {
+    if (!workoutId) return;
+
+    try {
+      setLoading(true);
+      const workoutData = await programService.getWorkoutDetails(workoutId as string);
+      setWorkout(workoutData);
+    } catch (error) {
+      console.error('Error loading workout:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
+        <YStack f={1} ai="center" jc="center">
+          <Spinner size="large" color="#7c3aed" />
+          <Text fontSize="$3" color="$gray10" mt="$3">
+            Loading workout...
+          </Text>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
+
+  if (!workout) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
+        <YStack f={1} ai="center" jc="center" p="$4">
+          <Text fontSize="$5" color="$gray11" textAlign="center">
+            Workout not found
+          </Text>
+          <Button mt="$4" onPress={() => router.back()}>
+            Go Back
+          </Button>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
 
   const handleBack = () => {
     router.back();
@@ -113,7 +89,8 @@ export default function WorkoutDetailPage() {
               {workout.name}
             </Text>
             <Text fontSize="$3" color="$gray10">
-              {workout.blockName} • {workout.weekLabel}
+              {workout.week_number ? `Week ${workout.week_number}` : 'Template Workout'}
+              {workout.day_of_week && ` • ${workout.day_of_week}`}
             </Text>
           </YStack>
         </XStack>
@@ -121,57 +98,46 @@ export default function WorkoutDetailPage() {
         <ScrollView>
           <YStack p="$4" gap="$4" pb="$24">
             {/* Workout Info Card */}
-            <Card elevate size="$4" p="$4" backgroundColor={workout.completed ? '#f0fdf4' : '#7c3aed'}>
+            <Card elevate size="$4" p="$4" backgroundColor="#7c3aed">
               <YStack gap="$3">
                 <XStack ai="center" jc="space-between">
-                  <XStack ai="center" gap="$2">
-                    <Calendar size={20} color={workout.completed ? '#16a34a' : 'white'} />
-                    <Text fontSize="$3" color={workout.completed ? '#16a34a' : 'white'} fontWeight="600">
-                      {workout.day.toUpperCase()}
-                    </Text>
-                  </XStack>
-                  {workout.completed && (
-                    <XStack
-                      backgroundColor="#dcfce7"
-                      px="$2"
-                      py="$1"
-                      borderRadius="$2"
-                      ai="center"
-                      gap="$1"
-                    >
-                      <CheckCircle size={14} color="#16a34a" />
-                      <Text fontSize="$1" fontWeight="600" color="#16a34a">
-                        COMPLETED
+                  {workout.day_of_week && (
+                    <XStack ai="center" gap="$2">
+                      <Calendar size={20} color="white" />
+                      <Text fontSize="$3" color="white" fontWeight="600">
+                        {workout.day_of_week.toUpperCase()}
                       </Text>
                     </XStack>
                   )}
                 </XStack>
                 <XStack ai="center" gap="$4">
                   <XStack ai="center" gap="$2">
-                    <Dumbbell size={18} color={workout.completed ? '#16a34a' : 'white'} />
-                    <Text fontSize="$3" color={workout.completed ? '#16a34a' : 'rgba(255,255,255,0.9)'}>
-                      {workout.exercises.length} exercises
+                    <Dumbbell size={18} color="white" />
+                    <Text fontSize="$3" color="rgba(255,255,255,0.9)">
+                      {workout.exercises.length} exercise{workout.exercises.length !== 1 ? 's' : ''}
                     </Text>
                   </XStack>
-                  <XStack ai="center" gap="$2">
-                    <Clock size={18} color={workout.completed ? '#16a34a' : 'white'} />
-                    <Text fontSize="$3" color={workout.completed ? '#16a34a' : 'rgba(255,255,255,0.9)'}>
-                      ~{workout.estimatedDuration}
-                    </Text>
-                  </XStack>
+                  {workout.estimated_duration_minutes && (
+                    <XStack ai="center" gap="$2">
+                      <Clock size={18} color="white" />
+                      <Text fontSize="$3" color="rgba(255,255,255,0.9)">
+                        ~{workout.estimated_duration_minutes} min
+                      </Text>
+                    </XStack>
+                  )}
                 </XStack>
               </YStack>
             </Card>
 
-            {/* Coach Notes */}
-            {workout.coachNotes && (
+            {/* Workout Description */}
+            {workout.description && (
               <Card elevate size="$4" p="$4" backgroundColor="#fef3c7">
                 <YStack gap="$2">
                   <Text fontSize="$4" fontWeight="bold" color="#92400e">
-                    Coach Notes
+                    Workout Notes
                   </Text>
                   <Text fontSize="$3" color="#78350f" lineHeight="$4">
-                    {workout.coachNotes}
+                    {workout.description}
                   </Text>
                 </YStack>
               </Card>
@@ -183,9 +149,9 @@ export default function WorkoutDetailPage() {
                 Exercises
               </Text>
 
-              {workout.exercises.map((exercise, index) => (
+              {workout.exercises.map((workoutExercise, index) => (
                 <Card
-                  key={exercise.id}
+                  key={workoutExercise.id}
                   elevate
                   size="$4"
                   p="$4"
@@ -202,12 +168,15 @@ export default function WorkoutDetailPage() {
                         jc="center"
                       >
                         <Text fontSize="$4" fontWeight="bold" color="#7c3aed">
-                          {index + 1}
+                          {workoutExercise.exercise_order}
                         </Text>
                       </XStack>
                       <YStack f={1}>
                         <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                          {exercise.name}
+                          {workoutExercise.exercise.name}
+                        </Text>
+                        <Text fontSize="$2" color="$gray10" textTransform="capitalize">
+                          {workoutExercise.exercise.category}
                         </Text>
                       </YStack>
                     </XStack>
@@ -226,7 +195,7 @@ export default function WorkoutDetailPage() {
                           SETS
                         </Text>
                         <Text fontSize="$4" fontWeight="bold" color="$gray12">
-                          {exercise.sets}
+                          {workoutExercise.target_sets}
                         </Text>
                       </XStack>
                       <XStack
@@ -241,60 +210,66 @@ export default function WorkoutDetailPage() {
                           REPS
                         </Text>
                         <Text fontSize="$4" fontWeight="bold" color="$gray12">
-                          {exercise.reps}
+                          {workoutExercise.target_reps}
                         </Text>
                       </XStack>
-                      <XStack
-                        backgroundColor="#f3f4f6"
-                        px="$3"
-                        py="$2"
-                        borderRadius="$3"
-                        gap="$2"
-                        ai="center"
-                      >
-                        <Text fontSize="$2" color="$gray11" fontWeight="600">
-                          WEIGHT
-                        </Text>
-                        <Text fontSize="$4" fontWeight="bold" color="$gray12">
-                          {exercise.weight}
-                        </Text>
-                      </XStack>
+                      {workoutExercise.target_weight_lbs && (
+                        <XStack
+                          backgroundColor="#f3f4f6"
+                          px="$3"
+                          py="$2"
+                          borderRadius="$3"
+                          gap="$2"
+                          ai="center"
+                        >
+                          <Text fontSize="$2" color="$gray11" fontWeight="600">
+                            WEIGHT
+                          </Text>
+                          <Text fontSize="$4" fontWeight="bold" color="$gray12">
+                            {workoutExercise.target_weight_lbs} lbs
+                          </Text>
+                        </XStack>
+                      )}
                     </XStack>
 
                     {/* RPE and Rest */}
-                    <XStack gap="$3">
-                      <XStack
-                        backgroundColor="#faf5ff"
-                        px="$3"
-                        py="$2"
-                        borderRadius="$3"
-                        gap="$2"
-                        ai="center"
-                      >
-                        <Text fontSize="$2" color="#7c3aed" fontWeight="600">
-                          RPE
-                        </Text>
-                        <Text fontSize="$4" fontWeight="bold" color="#7c3aed">
-                          {exercise.rpe}
-                        </Text>
-                      </XStack>
-                      <XStack
-                        backgroundColor="#faf5ff"
-                        px="$3"
-                        py="$2"
-                        borderRadius="$3"
-                        gap="$2"
-                        ai="center"
-                      >
-                        <Clock size={14} color="#7c3aed" />
-                        <Text fontSize="$3" color="#7c3aed" fontWeight="600">
-                          {exercise.restTime}
-                        </Text>
-                      </XStack>
+                    <XStack gap="$3" flexWrap="wrap">
+                      {workoutExercise.target_rpe && (
+                        <XStack
+                          backgroundColor="#faf5ff"
+                          px="$3"
+                          py="$2"
+                          borderRadius="$3"
+                          gap="$2"
+                          ai="center"
+                        >
+                          <Text fontSize="$2" color="#7c3aed" fontWeight="600">
+                            RPE
+                          </Text>
+                          <Text fontSize="$4" fontWeight="bold" color="#7c3aed">
+                            {workoutExercise.target_rpe}
+                          </Text>
+                        </XStack>
+                      )}
+                      {workoutExercise.rest_seconds && (
+                        <XStack
+                          backgroundColor="#faf5ff"
+                          px="$3"
+                          py="$2"
+                          borderRadius="$3"
+                          gap="$2"
+                          ai="center"
+                        >
+                          <Clock size={14} color="#7c3aed" />
+                          <Text fontSize="$3" color="#7c3aed" fontWeight="600">
+                            {Math.floor(workoutExercise.rest_seconds / 60)}:{String(workoutExercise.rest_seconds % 60).padStart(2, '0')} rest
+                          </Text>
+                        </XStack>
+                      )}
                     </XStack>
 
                     {/* Exercise Notes */}
-                    {exercise.notes && (
+                    {workoutExercise.notes && (
                       <YStack
                         backgroundColor="#fef3c7"
                         p="$3"
@@ -304,7 +279,7 @@ export default function WorkoutDetailPage() {
                           NOTE
                         </Text>
                         <Text fontSize="$3" color="#78350f">
-                          {exercise.notes}
+                          {workoutExercise.notes}
                         </Text>
                       </YStack>
                     )}
@@ -316,31 +291,29 @@ export default function WorkoutDetailPage() {
         </ScrollView>
 
         {/* Fixed Start Button */}
-        {!workout.completed && (
-          <YStack
-            backgroundColor="white"
-            borderTopWidth={1}
-            borderTopColor="#e5e7eb"
-            p="$4"
-            pb="$2"
+        <YStack
+          backgroundColor="white"
+          borderTopWidth={1}
+          borderTopColor="#e5e7eb"
+          p="$4"
+          pb="$2"
+        >
+          <Button
+            size="$6"
+            backgroundColor="#7c3aed"
+            color="white"
+            borderRadius="$10"
+            onPress={handleStartWorkout}
+            pressStyle={{ backgroundColor: '#6d28d9' }}
           >
-            <Button
-              size="$6"
-              backgroundColor="#7c3aed"
-              color="white"
-              borderRadius="$10"
-              onPress={handleStartWorkout}
-              pressStyle={{ backgroundColor: '#6d28d9' }}
-            >
-              <XStack ai="center" gap="$2">
-                <Play size={24} color="white" fill="white" />
-                <Text fontSize="$6" fontWeight="bold" color="white">
-                  Start Workout
-                </Text>
-              </XStack>
-            </Button>
-          </YStack>
-        )}
+            <XStack ai="center" gap="$2">
+              <Play size={24} color="white" fill="white" />
+              <Text fontSize="$6" fontWeight="bold" color="white">
+                Start Workout
+              </Text>
+            </XStack>
+          </Button>
+        </YStack>
       </YStack>
     </SafeAreaView>
   );
