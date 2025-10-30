@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { personalRecordService } from './personalrecord.service';
 
 // Types for workout sessions
 export interface WorkoutSession {
@@ -449,11 +450,81 @@ class WorkoutSessionService {
         throw updateError;
       }
 
+      // Track personal records for completed sets
+      await this.trackPersonalRecords(sessionId, completedSession.athlete_id);
+
       console.log('Session completed successfully');
       return completedSession;
     } catch (error) {
       console.error('Complete session error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Track personal records from completed session
+   * Checks all completed sets and updates PRs if new records were achieved
+   */
+  private async trackPersonalRecords(sessionId: string, athleteId: string): Promise<void> {
+    try {
+      console.log('Tracking personal records for session:', sessionId);
+
+      // Get all session exercises with their sets
+      const { data: sessionExercises, error: exerciseError } = await supabase
+        .from('session_exercises')
+        .select('id, exercise_id')
+        .eq('session_id', sessionId);
+
+      if (exerciseError || !sessionExercises) {
+        console.error('Error fetching session exercises for PR tracking:', exerciseError);
+        return;
+      }
+
+      // For each exercise, find the best completed set
+      for (const sessionExercise of sessionExercises) {
+        const { data: sets, error: setsError } = await supabase
+          .from('exercise_sets')
+          .select('weight_lbs, reps, completed')
+          .eq('session_exercise_id', sessionExercise.id)
+          .eq('completed', true)
+          .order('weight_lbs', { ascending: false })
+          .order('reps', { ascending: false });
+
+        if (setsError || !sets || sets.length === 0) {
+          continue; // No completed sets for this exercise
+        }
+
+        // Get the best set (highest weight, or highest reps at same weight)
+        const bestSet = sets[0];
+
+        // Check if this would be a new PR
+        const isNewPR = await personalRecordService.wouldBeNewPR(
+          athleteId,
+          sessionExercise.exercise_id,
+          bestSet.weight_lbs,
+          bestSet.reps
+        );
+
+        if (isNewPR) {
+          console.log(`New PR achieved for exercise ${sessionExercise.exercise_id}: ${bestSet.weight_lbs}lbs x ${bestSet.reps}`);
+
+          // Upsert the new PR
+          await personalRecordService.upsertPR(
+            athleteId,
+            sessionExercise.exercise_id,
+            {
+              weight_lbs: bestSet.weight_lbs,
+              reps: bestSet.reps,
+              achieved_at: new Date().toISOString(),
+            }
+          );
+        }
+      }
+
+      console.log('Personal records tracking completed');
+    } catch (error) {
+      console.error('Error tracking personal records:', error);
+      // Don't throw - we don't want to fail the session completion if PR tracking fails
     }
   }
 

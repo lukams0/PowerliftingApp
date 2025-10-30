@@ -1,11 +1,12 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Plus, Search, TrendingUp } from 'lucide-react-native';
+import { Plus, Search, TrendingUp, Award } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Input, Text, XStack, YStack } from 'tamagui';
 import { exerciseService } from '../../../services/exercise.service';
-import { Exercise, ExerciseCategory } from '../../../types/database.types';
+import { personalRecordService } from '../../../services/personalrecord.service';
+import { Exercise, ExerciseCategory, PersonalRecord } from '../../../types/database.types';
 import { useAuth } from '../../../contexts/AuthContext';
 
 const categories = ['All', 'Legs', 'Chest', 'Back', 'Shoulders', 'Arms', 'Core', 'Full Body'];
@@ -14,6 +15,7 @@ export default function ExercisesIndexScreen() {
   const { user } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [filteredExercises, setFilteredExercises] = useState<Exercise[]>([]);
+  const [personalRecords, setPersonalRecords] = useState<Map<string, PersonalRecord>>(new Map());
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -44,6 +46,16 @@ export default function ExercisesIndexScreen() {
       const data = await exerciseService.getAllExercises(user?.id);
       setExercises(data);
       setFilteredExercises(data);
+
+      // Load personal records for all exercises
+      if (user?.id) {
+        const prs = await personalRecordService.getUserPRs(user.id);
+        const prMap = new Map<string, PersonalRecord>();
+        prs.forEach(pr => {
+          prMap.set(pr.exercise_id, pr);
+        });
+        setPersonalRecords(prMap);
+      }
     } catch (error) {
       console.error('Error loading exercises:', error);
       alert('Failed to load exercises. Please try again.');
@@ -183,51 +195,74 @@ export default function ExercisesIndexScreen() {
                   </YStack>
                 </Card>
               ) : (
-                filteredExercises.map((exercise) => (
-                  <Card
-                    key={exercise.id}
-                    elevate
-                    size="$4"
-                    p="$4"
-                    backgroundColor="white"
-                    pressStyle={{ opacity: 0.7, scale: 0.98 }}
-                    onPress={() => handleExercisePress(exercise.id)}
-                  >
-                    <XStack ai="center" jc="space-between">
-                      <YStack gap="$2" f={1}>
-                        <XStack ai="center" gap="$2">
-                          <Text fontSize="$5" fontWeight="bold" color="$gray12">
-                            {exercise.name}
-                          </Text>
-                          {exercise.is_custom && (
+                filteredExercises.map((exercise) => {
+                  const pr = personalRecords.get(exercise.id);
+                  return (
+                    <Card
+                      key={exercise.id}
+                      elevate
+                      size="$4"
+                      p="$4"
+                      backgroundColor="white"
+                      pressStyle={{ opacity: 0.7, scale: 0.98 }}
+                      onPress={() => handleExercisePress(exercise.id)}
+                    >
+                      <XStack ai="center" jc="space-between">
+                        <YStack gap="$2" f={1}>
+                          <XStack ai="center" gap="$2">
+                            <Text fontSize="$5" fontWeight="bold" color="$gray12">
+                              {exercise.name}
+                            </Text>
+                            {exercise.is_custom && (
+                              <XStack
+                                backgroundColor="#dbeafe"
+                                px="$2"
+                                py="$1"
+                                borderRadius="$2"
+                              >
+                                <Text fontSize="$1" fontWeight="600" color="#2563eb">
+                                  Custom
+                                </Text>
+                              </XStack>
+                            )}
+                            {pr && (
+                              <XStack
+                                backgroundColor="#fef3c7"
+                                px="$2"
+                                py="$1"
+                                borderRadius="$2"
+                                ai="center"
+                                gap="$1"
+                              >
+                                <Award size={12} color="#f59e0b" />
+                                <Text fontSize="$1" fontWeight="600" color="#f59e0b">
+                                  PR
+                                </Text>
+                              </XStack>
+                            )}
+                          </XStack>
+                          <XStack ai="center" gap="$2">
                             <XStack
-                              backgroundColor="#dbeafe"
+                              backgroundColor="#faf5ff"
                               px="$2"
                               py="$1"
                               borderRadius="$2"
                             >
-                              <Text fontSize="$1" fontWeight="600" color="#2563eb">
-                                Custom
+                              <Text fontSize="$1" fontWeight="600" color="#7c3aed">
+                                {formatCategory(exercise.category)}
                               </Text>
                             </XStack>
-                          )}
-                        </XStack>
-                        <XStack ai="center" gap="$2">
-                          <XStack
-                            backgroundColor="#faf5ff"
-                            px="$2"
-                            py="$1"
-                            borderRadius="$2"
-                          >
-                            <Text fontSize="$1" fontWeight="600" color="#7c3aed">
-                              {formatCategory(exercise.category)}
-                            </Text>
+                            {pr && (
+                              <Text fontSize="$2" color="$gray10">
+                                {pr.weight_lbs}lbs × {pr.reps}
+                              </Text>
+                            )}
                           </XStack>
-                        </XStack>
-                      </YStack>
-                    </XStack>
-                  </Card>
-                ))
+                        </YStack>
+                      </XStack>
+                    </Card>
+                  );
+                })
               )}
             </YStack>
           </YStack>

@@ -139,41 +139,61 @@ class PersonalRecordService {
       
       // First, get the current PR to see if this is actually a new PR
       const currentPR = await this.getExercisePR(userId, exerciseId);
-      
+
       // Check if this is actually a PR (higher weight, or same weight with more reps)
       if (currentPR) {
-        const isNewPR = 
+        const isNewPR =
           pr.weight_lbs > currentPR.weight_lbs ||
           (pr.weight_lbs === currentPR.weight_lbs && (pr.reps || 1) > currentPR.reps);
-        
+
         if (!isNewPR) {
           console.log('Not a new PR, keeping current record');
           return currentPR;
         }
+
+        // Update existing PR
+        const { data, error } = await supabase
+          .from('personal_records')
+          .update({
+            weight_lbs: pr.weight_lbs,
+            reps: pr.reps || 1,
+            achieved_at: pr.achieved_at || new Date().toISOString(),
+            notes: pr.notes,
+          })
+          .eq('id', currentPR.id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Update PR error:', error);
+          throw error;
+        }
+
+        console.log('PR updated successfully');
+        return data;
+      } else {
+        // Insert new PR
+        const { data, error } = await supabase
+          .from('personal_records')
+          .insert({
+            user_id: userId,
+            exercise_id: exerciseId,
+            weight_lbs: pr.weight_lbs,
+            reps: pr.reps || 1,
+            achieved_at: pr.achieved_at || new Date().toISOString(),
+            notes: pr.notes,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Insert PR error:', error);
+          throw error;
+        }
+
+        console.log('PR inserted successfully');
+        return data;
       }
-
-      const { data, error } = await supabase
-        .from('personal_records')
-        .upsert({
-          user_id: userId,
-          exercise_id: exerciseId,
-          weight_lbs: pr.weight_lbs,
-          reps: pr.reps || 1,
-          achieved_at: pr.achieved_at || new Date().toISOString(),
-          notes: pr.notes,
-        }, {
-          onConflict: 'user_id,exercise_id',
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Upsert PR error:', error);
-        throw error;
-      }
-
-      console.log('PR upserted successfully');
-      return data;
     } catch (error) {
       console.error('Upsert PR error:', error);
       throw error;
