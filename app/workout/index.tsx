@@ -371,58 +371,57 @@ export default function ActiveWorkoutModal() {
     );
   }
 
-  if (isCollapsed) {
-    // Minimized view - small bar at bottom
-    return (
-      <YStack
-        position="absolute"
-        bottom={0}
-        left={0}
-        right={0}
-        backgroundColor="white"
-        borderTopWidth={2}
-        borderTopColor="#7c3aed"
-        p="$3"
-        shadowColor="#000"
-        shadowOffset={{ width: 0, height: -2 }}
-        shadowOpacity={0.1}
-        shadowRadius={4}
-        elevation={5}
-        zIndex={1000}
-      >
-        <TouchableOpacity onPress={() => setIsCollapsed(false)}>
-          <XStack ai="center" jc="space-between">
-            <YStack f={1} gap="$1">
-              <Text fontSize="$4" fontWeight="bold" color="$gray12">
-                {session?.name || 'Workout'}
-              </Text>
-              <XStack ai="center" gap="$2">
-                <Clock size={14} color="#7c3aed" />
-                <Text fontSize="$2" fontWeight="600" color="#7c3aed">
-                  {formatTime(elapsedTime)}
-                </Text>
-              </XStack>
-            </YStack>
-            <ChevronDown
-              size={24}
-              color="#7c3aed"
-              style={{
-                transform: [{ rotate: '180deg' }]
-              }}
-            />
-          </XStack>
-        </TouchableOpacity>
-      </YStack>
-    );
-  }
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <YStack f={1} backgroundColor="#f5f5f5">
+    <SafeAreaView style={{ flex: 1, backgroundColor: isCollapsed ? 'transparent' : '#f5f5f5' }} edges={['top']}>
+      {isCollapsed ? (
+        // Minimized view - small bar at bottom
+        <YStack
+          f={1}
+          jc="flex-end"
+          backgroundColor="transparent"
+        >
+          <YStack
+            backgroundColor="white"
+            borderTopWidth={2}
+            borderTopColor="#7c3aed"
+            p="$3"
+            shadowColor="#000"
+            shadowOffset={{ width: 0, height: -2 }}
+            shadowOpacity={0.1}
+            shadowRadius={4}
+            elevation={5}
+          >
+            <TouchableOpacity onPress={() => setIsCollapsed(false)}>
+              <XStack ai="center" jc="space-between">
+                <YStack f={1} gap="$1">
+                  <Text fontSize="$4" fontWeight="bold" color="$gray12">
+                    {session?.name || 'Workout'}
+                  </Text>
+                  <XStack ai="center" gap="$2">
+                    <Clock size={14} color="#7c3aed" />
+                    <Text fontSize="$2" fontWeight="600" color="#7c3aed">
+                      {formatTime(elapsedTime)}
+                    </Text>
+                  </XStack>
+                </YStack>
+                <ChevronDown
+                  size={24}
+                  color="#7c3aed"
+                  style={{
+                    transform: [{ rotate: '180deg' }]
+                  }}
+                />
+              </XStack>
+            </TouchableOpacity>
+          </YStack>
+        </YStack>
+      ) : (
+        // Full workout view
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <YStack f={1} backgroundColor="#f5f5f5">
           {/* Header */}
           <XStack backgroundColor="white" p="$4" ai="center" jc="space-between" borderBottomWidth={1} borderBottomColor="#e5e7eb">
             <Button
@@ -733,8 +732,9 @@ export default function ActiveWorkoutModal() {
               disabled={saving}
             />
           )}
-        </YStack>
-      </KeyboardAvoidingView>
+          </YStack>
+        </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 }

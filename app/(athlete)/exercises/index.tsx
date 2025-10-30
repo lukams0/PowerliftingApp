@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Plus, Search, TrendingUp } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Input, Text, XStack, YStack } from 'tamagui';
@@ -30,6 +30,13 @@ export default function ExercisesIndexScreen() {
   useEffect(() => {
     loadExercises();
   }, []);
+
+  // Refresh exercises when screen regains focus (e.g., after creating new exercise)
+  useFocusEffect(
+    useCallback(() => {
+      loadExercises();
+    }, [])
+  );
 
   const loadExercises = async () => {
     try {
