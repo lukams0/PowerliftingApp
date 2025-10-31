@@ -164,7 +164,7 @@ class ProgramService {
   async getProgramDetails(programId: string): Promise<ProgramWithDetails | null> {
     try {
       console.log('Fetching program details:', programId);
-      
+
       // Get the program
       const { data: program, error: programError } = await supabase
         .from('programs')
@@ -199,6 +199,39 @@ class ProgramService {
       };
     } catch (error) {
       console.error('Get program details error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a single program block with workouts
+   */
+  async getBlockDetails(blockId: string): Promise<(ProgramBlock & {
+    workouts: Workout[];
+    program: Program;
+  }) | null> {
+    try {
+      console.log('Fetching block details:', blockId);
+
+      const { data, error } = await supabase
+        .from('program_blocks')
+        .select(`
+          *,
+          workouts:workouts(*),
+          program:programs(*)
+        `)
+        .eq('id', blockId)
+        .single();
+
+      if (error) {
+        console.error('Fetch block error:', error);
+        throw error;
+      }
+
+      console.log('Block details fetched successfully');
+      return data as (ProgramBlock & { workouts: Workout[]; program: Program });
+    } catch (error) {
+      console.error('Get block details error:', error);
       throw error;
     }
   }

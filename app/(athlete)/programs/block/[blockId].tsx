@@ -1,73 +1,80 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CheckCircle, Clock, Dumbbell } from 'lucide-react-native';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, Progress, Text, XStack, YStack } from 'tamagui';
-
-// Mock block data
-const mockBlock = {
-  id: 'block-1',
-  name: 'Foundation Block',
-  programName: 'Strength Building Phase',
-  weeks: '1-4',
-  weekCount: 4,
-  currentWeek: 3,
-  focus: 'Building base strength and technique',
-  description: 'This block focuses on building a strong foundation with moderate intensity and volume. Perfect your technique on the main lifts while building work capacity.',
-  weeks_data: [
-    {
-      weekNumber: 1,
-      weekLabel: 'Week 1',
-      status: 'completed',
-      workouts: [
-        { id: 'w1-1', day: 'Monday', name: 'Upper Body A', exercises: 6, duration: '60 min', completed: true },
-        { id: 'w1-2', day: 'Tuesday', name: 'Lower Body A', exercises: 5, duration: '55 min', completed: true },
-        { id: 'w1-3', day: 'Thursday', name: 'Upper Body B', exercises: 6, duration: '60 min', completed: true },
-        { id: 'w1-4', day: 'Friday', name: 'Lower Body B', exercises: 5, duration: '55 min', completed: true },
-      ],
-    },
-    {
-      weekNumber: 2,
-      weekLabel: 'Week 2',
-      status: 'completed',
-      workouts: [
-        { id: 'w2-1', day: 'Monday', name: 'Upper Body A', exercises: 6, duration: '60 min', completed: true },
-        { id: 'w2-2', day: 'Tuesday', name: 'Lower Body A', exercises: 5, duration: '55 min', completed: true },
-        { id: 'w2-3', day: 'Thursday', name: 'Upper Body B', exercises: 6, duration: '60 min', completed: true },
-        { id: 'w2-4', day: 'Friday', name: 'Lower Body B', exercises: 5, duration: '55 min', completed: true },
-      ],
-    },
-    {
-      weekNumber: 3,
-      weekLabel: 'Week 3',
-      status: 'active',
-      workouts: [
-        { id: 'w3-1', day: 'Monday', name: 'Upper Body A', exercises: 6, duration: '60 min', completed: true },
-        { id: 'w3-2', day: 'Tuesday', name: 'Lower Body A', exercises: 5, duration: '55 min', completed: true },
-        { id: 'w3-3', day: 'Thursday', name: 'Upper Body B', exercises: 6, duration: '60 min', completed: false },
-        { id: 'w3-4', day: 'Friday', name: 'Lower Body B', exercises: 5, duration: '55 min', completed: false },
-      ],
-    },
-    {
-      weekNumber: 4,
-      weekLabel: 'Week 4 - Deload',
-      status: 'upcoming',
-      workouts: [
-        { id: 'w4-1', day: 'Monday', name: 'Upper Body A', exercises: 5, duration: '45 min', completed: false },
-        { id: 'w4-2', day: 'Tuesday', name: 'Lower Body A', exercises: 4, duration: '40 min', completed: false },
-        { id: 'w4-3', day: 'Thursday', name: 'Upper Body B', exercises: 5, duration: '45 min', completed: false },
-        { id: 'w4-4', day: 'Friday', name: 'Lower Body B', exercises: 4, duration: '40 min', completed: false },
-      ],
-    },
-  ],
-};
+import { Button, Card, Progress, Spinner, Text, XStack, YStack } from 'tamagui';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { programService } from '../../../../services/program.service';
+import type { ProgramBlock, Program, Workout } from '../../../../services/program.service';
 
 export default function BlockDetailPage() {
   const { blockId } = useLocalSearchParams();
-  
-  // TODO: Fetch block data based on blockId
-  const block = mockBlock;
+  const { user } = useAuth();
+  const [block, setBlock] = useState<(ProgramBlock & { workouts: Workout[]; program: Program }) | null>(null);
+  const [athleteProgram, setAthleteProgram] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadBlock();
+  }, [blockId, user]);
+
+  const loadBlock = async () => {
+    if (!blockId || !user) return;
+
+    try {
+      setLoading(true);
+
+      // Fetch block details
+      const blockData = await programService.getBlockDetails(blockId as string);
+      setBlock(blockData);
+
+      if (blockData) {
+        // Fetch athlete's enrollment to get current week
+        const athletePrograms = await programService.getAthletePrograms(user.id);
+        const enrollment = athletePrograms.find(ap => ap.program_id === blockData.program_id);
+        setAthleteProgram(enrollment);
+      }
+    } catch (error) {
+      console.error('Error loading block:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
+        <YStack f={1} ai="center" jc="center">
+          <Spinner size="large" color="#7c3aed" />
+          <Text fontSize="$3" color="$gray10" mt="$3">
+            Loading block...
+          </Text>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
+
+  if (!block) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
+        <YStack f={1} ai="center" jc="center" p="$4">
+          <Text fontSize="$5" color="$gray11" textAlign="center">
+            Block not found
+          </Text>
+          <Button mt="$4" onPress={() => router.back()}>
+            Go Back
+          </Button>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
+
+  const currentWeek = athleteProgram?.current_week || 1;
+  const weekCount = block.end_week - block.start_week + 1;
+  const blockCurrentWeek = currentWeek >= block.start_week && currentWeek <= block.end_week
+    ? currentWeek - block.start_week + 1
+    : 0;
 
   const handleBack = () => {
     router.back();
@@ -90,6 +97,33 @@ export default function BlockDetailPage() {
     }
   };
 
+  // Group workouts by week
+  const workoutsByWeek: { [weekNumber: number]: Workout[] } = {};
+  block.workouts.forEach((workout) => {
+    if (workout.week_number !== null) {
+      if (!workoutsByWeek[workout.week_number]) {
+        workoutsByWeek[workout.week_number] = [];
+      }
+      workoutsByWeek[workout.week_number].push(workout);
+    }
+  });
+
+  // Create week data array
+  const weeksData = [];
+  for (let weekNum = block.start_week; weekNum <= block.end_week; weekNum++) {
+    const workouts = workoutsByWeek[weekNum] || [];
+    let status = 'upcoming';
+    if (weekNum < currentWeek) status = 'completed';
+    else if (weekNum === currentWeek) status = 'active';
+
+    weeksData.push({
+      weekNumber: weekNum,
+      weekLabel: `Week ${weekNum}`,
+      status,
+      workouts,
+    });
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
       <YStack f={1} backgroundColor="#f5f5f5">
@@ -108,7 +142,7 @@ export default function BlockDetailPage() {
               {block.name}
             </Text>
             <Text fontSize="$3" color="$gray10">
-              {block.programName} • Weeks {block.weeks}
+              {block.program.name} • Weeks {block.start_week}-{block.end_week}
             </Text>
           </YStack>
         </XStack>
@@ -123,35 +157,47 @@ export default function BlockDetailPage() {
                 </Text>
                 <XStack ai="flex-end" gap="$2">
                   <Text fontSize="$8" fontWeight="bold" color="white">
-                    Week {block.currentWeek}
+                    {blockCurrentWeek > 0 ? `Week ${blockCurrentWeek}` : 'Not Started'}
                   </Text>
-                  <Text fontSize="$4" color="rgba(255,255,255,0.9)" mb="$1">
-                    of {block.weekCount}
-                  </Text>
+                  {blockCurrentWeek > 0 && (
+                    <Text fontSize="$4" color="rgba(255,255,255,0.9)" mb="$1">
+                      of {weekCount}
+                    </Text>
+                  )}
                 </XStack>
-                <Progress value={(block.currentWeek / block.weekCount) * 100} max={100}>
-                  <Progress.Indicator animation="bouncy" backgroundColor="white" />
-                </Progress>
+                {blockCurrentWeek > 0 && (
+                  <Progress value={(blockCurrentWeek / weekCount) * 100} max={100}>
+                    <Progress.Indicator animation="bouncy" backgroundColor="white" />
+                  </Progress>
+                )}
               </YStack>
             </Card>
 
             {/* Description */}
-            <Card elevate size="$4" p="$4" backgroundColor="white">
-              <YStack gap="$2">
-                <Text fontSize="$4" fontWeight="bold" color="$gray12">
-                  Block Focus
-                </Text>
-                <Text fontSize="$3" color="$gray11" lineHeight="$4">
-                  {block.description}
-                </Text>
-              </YStack>
-            </Card>
+            {(block.description || block.focus) && (
+              <Card elevate size="$4" p="$4" backgroundColor="white">
+                <YStack gap="$2">
+                  <Text fontSize="$4" fontWeight="bold" color="$gray12">
+                    Block Focus
+                  </Text>
+                  {block.description && (
+                    <Text fontSize="$3" color="$gray11" lineHeight="$4">
+                      {block.description}
+                    </Text>
+                  )}
+                  {block.focus && (
+                    <Text fontSize="$3" color="$gray11" lineHeight="$4" fontStyle="italic">
+                      {block.focus}
+                    </Text>
+                  )}
+                </YStack>
+              </Card>
+            )}
 
             {/* Weeks */}
             <YStack gap="$4">
-              {block.weeks_data.map((week) => {
+              {weeksData.map((week) => {
                 const statusColors = getWeekStatusColor(week.status);
-                const completedWorkouts = week.workouts.filter(w => w.completed).length;
                 
                 return (
                   <YStack key={week.weekNumber} gap="$3">
@@ -173,64 +219,73 @@ export default function BlockDetailPage() {
                           </XStack>
                         )}
                       </XStack>
-                      <Text fontSize="$3" color="$gray10">
-                        {completedWorkouts}/{week.workouts.length} completed
-                      </Text>
+                      {week.workouts.length > 0 && (
+                        <Text fontSize="$3" color="$gray10">
+                          {week.workouts.length} workout{week.workouts.length !== 1 ? 's' : ''}
+                        </Text>
+                      )}
                     </XStack>
 
                     {/* Workouts for this week */}
                     <YStack gap="$2">
-                      {week.workouts.map((workout) => (
-                        <Card
-                          key={workout.id}
-                          elevate
-                          size="$4"
-                          p="$4"
-                          backgroundColor={workout.completed ? '#f0fdf4' : 'white'}
-                          borderWidth={workout.completed ? 1 : 0}
-                          borderColor={workout.completed ? '#86efac' : 'transparent'}
-                          pressStyle={{ opacity: 0.7, scale: 0.98 }}
-                          onPress={() => handleWorkoutPress(workout.id)}
-                        >
-                          <XStack ai="center" jc="space-between">
-                            <YStack gap="$2" f={1}>
-                              <XStack ai="center" gap="$2">
-                                <XStack
-                                  backgroundColor="#faf5ff"
-                                  px="$2"
-                                  py="$1"
-                                  borderRadius="$2"
-                                >
-                                  <Text fontSize="$1" fontWeight="600" color="#7c3aed">
-                                    {workout.day.toUpperCase()}
-                                  </Text>
-                                </XStack>
-                                {workout.completed && (
-                                  <CheckCircle size={16} color="#16a34a" />
-                                )}
-                              </XStack>
-                              <Text fontSize="$4" fontWeight="bold" color="$gray12">
-                                {workout.name}
-                              </Text>
-                              <XStack ai="center" gap="$3">
-                                <XStack ai="center" gap="$1">
-                                  <Dumbbell size={14} color="#9ca3af" />
-                                  <Text fontSize="$2" color="$gray10">
-                                    {workout.exercises} exercises
-                                  </Text>
-                                </XStack>
-                                <Text fontSize="$2" color="$gray9">•</Text>
-                                <XStack ai="center" gap="$1">
-                                  <Clock size={14} color="#9ca3af" />
-                                  <Text fontSize="$2" color="$gray10">
-                                    {workout.duration}
-                                  </Text>
-                                </XStack>
-                              </XStack>
-                            </YStack>
-                          </XStack>
+                      {week.workouts.length === 0 ? (
+                        <Card elevate size="$4" p="$4" backgroundColor="white">
+                          <Text fontSize="$3" color="$gray10" textAlign="center">
+                            No workouts scheduled
+                          </Text>
                         </Card>
-                      ))}
+                      ) : (
+                        week.workouts.map((workout) => (
+                          <Card
+                            key={workout.id}
+                            elevate
+                            size="$4"
+                            p="$4"
+                            backgroundColor="white"
+                            pressStyle={{ opacity: 0.7, scale: 0.98 }}
+                            onPress={() => handleWorkoutPress(workout.id)}
+                          >
+                            <XStack ai="center" jc="space-between">
+                              <YStack gap="$2" f={1}>
+                                <XStack ai="center" gap="$2">
+                                  {workout.day_of_week && (
+                                    <XStack
+                                      backgroundColor="#faf5ff"
+                                      px="$2"
+                                      py="$1"
+                                      borderRadius="$2"
+                                    >
+                                      <Text fontSize="$1" fontWeight="600" color="#7c3aed">
+                                        {workout.day_of_week.toUpperCase()}
+                                      </Text>
+                                    </XStack>
+                                  )}
+                                </XStack>
+                                <Text fontSize="$4" fontWeight="bold" color="$gray12">
+                                  {workout.name}
+                                </Text>
+                                {workout.description && (
+                                  <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+                                    {workout.description}
+                                  </Text>
+                                )}
+                                <XStack ai="center" gap="$3">
+                                  {workout.estimated_duration_minutes && (
+                                    <>
+                                      <XStack ai="center" gap="$1">
+                                        <Clock size={14} color="#9ca3af" />
+                                        <Text fontSize="$2" color="$gray10">
+                                          {workout.estimated_duration_minutes} min
+                                        </Text>
+                                      </XStack>
+                                    </>
+                                  )}
+                                </XStack>
+                              </YStack>
+                            </XStack>
+                          </Card>
+                        ))
+                      )}
                     </YStack>
                   </YStack>
                 );
